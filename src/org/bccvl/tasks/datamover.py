@@ -6,7 +6,6 @@ import time
 import os
 
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks import plone
 
 LOG = logging.getLogger('__name__')
 
@@ -62,7 +61,8 @@ class DataMover(object):
 @app.task(throws=(Exception, ), bind=True)
 def move(self, arglist, context):
     # TODO: call datamover, wait for result, return state (success, error)
-    plone.set_progress.delay('RUNNING', 'DOWNLOAD', context),
+    app.send_task("org.bccvl.tasks.plone.set_progress",
+                  args=('RUNNING', 'DOWNLOAD', context))
     dm = DataMover()
     states = dm.move(arglist)
     states = dm.wait(states)
@@ -72,5 +72,6 @@ def move(self, arglist, context):
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state['id'], state['status'], state['reason']))
     if errmsgs:
-        plone.set_progress.delay('FAILED', '\n'.join(errmsgs), context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
