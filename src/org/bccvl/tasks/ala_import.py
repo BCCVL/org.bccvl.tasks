@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 
-from org.bccvl.tasks.celery import app
-
 from org.bccvl.tasks import datamover
 from org.bccvl.tasks import plone
 
+# FIXME: this module shouldn't be here better suited to live in site package, because it doesn't define a task, but rather builds a task chain to send off
 
 # ALA import is a chain of tasks
 # 1. start download
@@ -19,8 +18,8 @@ from org.bccvl.tasks import plone
 # multiple times in case of conflicterrors, or kick off task for
 # non existent content, in case task starts before this transaction
 # commits
-@app.task(base=plone.AfterCommitTask)
 def ala_import(lsid, path, context):
+    # creates task chain that can be submitted to queue
     """
     lsid .. species id
     path ... destination path for ala import files
@@ -56,4 +55,4 @@ def ala_import(lsid, path, context):
 
     ala_job = move_job | import_job | success_job
 
-    return ala_job()
+    return ala_job
