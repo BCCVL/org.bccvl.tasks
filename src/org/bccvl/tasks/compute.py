@@ -12,7 +12,6 @@ from zipfile import ZipFile
 from org.bccvl.tasks.celery import app
 
 from org.bccvl.tasks import datamover
-from org.bccvl.tasks import plone
 
 from celery.canvas import group
 
@@ -32,7 +31,7 @@ from celery.canvas import group
 # multiple times in case of conflicterrors, or kick off task for
 # non existent content, in case task starts before this transaction
 # commits
-@app.task(base=plone.AfterCommitTask, bind = True)
+#@app.task(base=plone.AfterCommitTask, bind = True)
 def sdm_task(self, params, context):
     """
     lsid .. species id
@@ -43,9 +42,11 @@ def sdm_task(self, params, context):
     """
     try:
 
-        plone.set_progress.delay('SUBMITTED', 'SUBMITTED', context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('SUBMITTED', 'SUBMITTED', context))
 
-        plone.set_progress.delay('RUNNING', 'Transferring data', context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Transferring data', context))
         # create initial folder structure
         create_workenv(params)
         # transfer input files
@@ -65,24 +66,29 @@ def sdm_task(self, params, context):
         jsonfile.close()
 
         # run the script
-        plone.set_progress.delay('RUNNING', 'Executing job', context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
                                  scriptname + 'out')
         cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
         ret = proc.wait()
         if ret != 0:
-            plone.set_progress.delay('FAILED', 'Script execution faild with exit code {0}'.format(ret), context)
+            app.send_task("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', 'Script execution faild with exit code {0}'.format(ret), context))
             raise Exception('One or more move jobs failed')
 
         # move results back
-        plone.set_progress.delay('RUNNING', 'Transferring outputs', context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Transferring outputs', context))
         transfer_outputs(params, context)
 
         # we are done here, hand over to result importer
-        plone.import_result.delay(params, context)
+        app.send_task("org.bccvl.tasks.plone.import_result",
+                      args=(params, context))
     except Exception as e:
-        plone.set_progress.delay('FAILED', 'SDM failed {}'.format(e), context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('FAILED', 'SDM failed {}'.format(e), context))
         raise
     finally:
         # TODO:  check if dir exists
@@ -136,7 +142,8 @@ def transfer_inputs(params, context):
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state.get('id', '0'), state['status'], state['reason']))
     if errmsgs:
-        plone.set_progress.delay('FAILED', '\n'.join(errmsgs), context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
 
     # all data successfully transferred
@@ -185,7 +192,8 @@ def transfer_outputs(params, context):
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state.get('id', '0'), state['status'], state['reason']))
     if errmsgs:
-        plone.set_progress.delay('FAILED', '\n'.join(errmsgs), context)
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
 
 
