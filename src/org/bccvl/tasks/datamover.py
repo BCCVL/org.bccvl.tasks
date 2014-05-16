@@ -70,8 +70,9 @@ def move(self, arglist, context):
     for state in states:
         if state['status'] in dm.failed_states:
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
-                state['id'], state['status'], state['reason']))
+                state.get('id', -1), state['status'], state['reason']))
     if errmsgs:
+        # FIXME we rely here on failed state, but if this code is skipped for some reason, the ui will never see the failed state.-> do this in task_chain
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
