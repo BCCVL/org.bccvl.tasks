@@ -13,6 +13,7 @@ import os
 import shutil
 from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
+from AccessControl import SpecialUsers
 from Testing.makerequest import makerequest
 from ZODB.POSException import ConflictError
 import Zope2
@@ -104,7 +105,18 @@ def zope_task(**task_kw):
                     kw['_context'] = obj
 
                     # set up security manager
-                    user = site.acl_users.getUserById(userid)
+                    uf = getattr(site, 'acl_users', None)
+                    user = None
+                    while uf is not None:
+                        user = uf.gesUserById(userid)
+                        if user is not None:
+                            break
+                        parent = uf.__parent__.__parent__
+                        uf = getattr(parent, 'acl_users', None)
+                    if user is None:
+                        # No user found anywhere, so let's us our
+                        # special nobody user
+                        user = SpecialUsers.nobody
                     newSecurityManager(None, user)
 
                     # run the task
