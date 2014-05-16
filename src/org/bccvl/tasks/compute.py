@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 import json
 from decimal import Decimal
-from itertools import chain
 import subprocess
 import os
 import shutil
@@ -12,8 +11,6 @@ from zipfile import ZipFile
 from org.bccvl.tasks.celery import app
 
 from org.bccvl.tasks import datamover
-
-from celery.canvas import group
 
 # FIXME: in case of any errors, we still have to capture the log output and clean up import temp folder
 
@@ -32,6 +29,7 @@ from celery.canvas import group
 # non existent content, in case task starts before this transaction
 # commits
 #@app.task(base=plone.AfterCommitTask, bind = True)
+@app.task(bind=True)
 def sdm_task(self, params, context):
     """
     lsid .. species id
@@ -75,7 +73,9 @@ def sdm_task(self, params, context):
         ret = proc.wait()
         if ret != 0:
             app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', 'Script execution faild with exit code {0}'.format(ret), context))
+                          args=('FAILED',
+                                'Script execution faild with exit code {0}'.format(ret),
+                                context))
             raise Exception('One or more move jobs failed')
 
         # move results back
@@ -87,17 +87,21 @@ def sdm_task(self, params, context):
         app.send_task("org.bccvl.tasks.plone.import_result",
                       args=(params, context))
     except Exception as e:
+        # TODO: capture stacktrace
         app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', 'SDM failed {}'.format(e), context))
-        raise
+                      args=('FAILED', 'SDM failed {}'.format(repr(e)),
+                            context))
+        raise e
     finally:
         # TODO:  check if dir exists
-        shutil.rmtree(params['env']['workdir'])
+        path = params['env'].get('workdir', None)
+        if path and os.path.exists(path):
+            shutil.rmtree(path)
 
 
 def create_workenv(params):
     ### create worker directories and update env section in params
-    root = os.environ.get('WORKER_DIR') or os.environ['HOME']
+    root = os.environ.get('WORKDIR') or os.environ.get('HOME', None)
     workdir = tempfile.mkdtemp(dir=root)
     params['env'].update({
         'workdir': workdir,
