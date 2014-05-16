@@ -45,9 +45,9 @@ def ala_import(lsid, path, context):
     # cleanup_job.link_error(failed_job)
 
     move_job = datamover.move.si([
-        {'type': 'ala', 'lsid': lsid},
-        {'host': 'plone', 'path': path}],
-        context=context)
+        ({'type': 'ala', 'lsid': lsid},
+         {'host': 'plone', 'path': path})],
+        context)
     # we'll have to clean up if move fails'
     move_job.link_error(cleanup_job)
 
