@@ -44,6 +44,15 @@ class AfterCommitTask(Task):
         # but we don't have one available yet
 
 
+def after_commit_task(task, *args, **kw):
+    # send task after a successful transaction
+    def hook(success):
+        if success:
+            # TODO: maybe if apply fails try to send a state update failed
+            task.apply_async(*args, **kw)
+    transaction.get().addAfterCommitHook(hook)
+
+
 def zope_task(**task_kw):
     """Decorator of celery tasks that should be run in a Zope context.
 
