@@ -49,7 +49,7 @@ def after_commit_task(task, *args, **kw):
     def hook(success):
         if success:
             # TODO: maybe if apply fails try to send a state update failed
-            task.apply_async(*args, **kw)
+            task.apply_async(args=args, kwargs=kw)
     transaction.get().addAfterCommitHook(hook)
 
 
