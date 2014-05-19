@@ -68,7 +68,9 @@ def sdm_task(self, params, context):
                       args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
                                  scriptname + 'out')
-        cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
+        #cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
+        # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
+        cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
         ret = proc.wait()
         if ret != 0:
