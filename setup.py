@@ -28,7 +28,7 @@ setup(
         'setuptools',  # distribute
         'celery'
     ],
-    extras_requires={
+    extras_require={
         'bccvl': [
             'org.bccvl.site'
         ]
