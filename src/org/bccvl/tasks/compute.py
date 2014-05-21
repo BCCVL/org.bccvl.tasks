@@ -72,13 +72,14 @@ def sdm_task(self, params, context):
         # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
         cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
+        # capture process statistics here
         ret = proc.wait()
         if ret != 0:
             app.send_task("org.bccvl.tasks.plone.set_progress",
                           args=('FAILED',
                                 'Script execution faild with exit code {0}'.format(ret),
                                 context))
-            raise Exception('One or more move jobs failed')
+            raise Exception('Script execution failed with retcode %d' % ret)
 
         # move results back
         app.send_task("org.bccvl.tasks.plone.set_progress",
