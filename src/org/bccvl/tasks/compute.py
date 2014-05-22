@@ -11,6 +11,10 @@ from zipfile import ZipFile
 from org.bccvl.tasks.celery import app
 
 from org.bccvl.tasks import datamover
+from celery.utils.log import get_task_logger
+
+
+LOG = get_task_logger(__name__)
 
 # FIXME: in case of any errors, we still have to capture the log output and clean up import temp folder
 
@@ -70,16 +74,20 @@ def sdm_task(self, params, context):
                                  scriptname + 'out')
         #cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
         # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
-        cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
-        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
+        #cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
+        outfile = open(scriptout, 'w')
+        cmd = ["Rscript", "--no-save", "--no-restore", scriptname]
+        LOG.info("Executing: %s", ' '.join(cmd))
+        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+                                stdout=outfile, stderr=outfile)
         # capture process statistics here
         ret = proc.wait()
+        outfile.close()
         if ret != 0:
+            errmsg = 'Script execution faild with exit code {0}'.format(ret)
             app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED',
-                                'Script execution faild with exit code {0}'.format(ret),
-                                context))
-            raise Exception('Script execution failed with retcode %d' % ret)
+                          args=('FAILED', errmsg, context))
+            raise Exception(errmsg)
 
         # move results back
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -235,3 +243,78 @@ def decimal_encoder(o):
     if isinstance(o, Decimal):
         return float(o)
     raise TypeError(repr(o) + " is not JSON serializable")
+
+
+# FIXME: enormous amount of duplicate code here (see sdm_task)
+@app.task(bind=True)
+def biodiverse_task(self, params, context):
+    """
+    lsid .. species id
+    path ... destination path for ala import files
+    context ... a dictionary with keys:
+      - context: path to context object
+      - userid: zope userid
+    """
+    try:
+
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('SUBMITTED', 'SUBMITTED', context))
+
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Transferring data', context))
+        # create initial folder structure
+        create_workenv(params)
+        # transfer input files
+        transfer_inputs(params, context)
+        # create script
+        scriptname = os.path.join(params['env']['scriptdir'],
+                                  params['worker']['script']['name'])
+        scriptfile = open(scriptname, 'w')
+        scriptfile.write(params['worker']['script']['script'])
+        scriptfile.close()
+        # write params.json
+        jsonfile = open(os.path.join(params['env']['scriptdir'],
+                                     'params.json'),
+                        'w')
+        json.dump(params, jsonfile, default=decimal_encoder,
+                  sort_keys=True, indent=4)
+        jsonfile.close()
+
+        # run the script
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Executing job', context))
+        scriptout = os.path.join(params['env']['outputdir'],
+                                 scriptname + 'out')
+        outfile = open(scriptout, 'w')
+        cmd = ["perl", scriptname]
+        LOG.info("Executing: %s", ' '.join(cmd))
+        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+                                stdout=outfile, stderr=outfile)
+        # capture process statistics here
+        ret = proc.wait()
+        outfile.close()
+        if ret != 0:
+            errmsg = 'Script execution faild with exit code {0}'.format(ret)
+            app.send_task("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', errmsg, context))
+            raise Exception(errmsg)
+
+        # move results back
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('RUNNING', 'Transferring outputs', context))
+        transfer_outputs(params, context)
+
+        # we are done here, hand over to result importer
+        app.send_task("org.bccvl.tasks.plone.import_result",
+                      args=(params, context))
+    except Exception as e:
+        # TODO: capture stacktrace
+        app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=('FAILED', 'Biodiverse failed {}'.format(repr(e)),
+                            context))
+        raise e
+    finally:
+        # TODO:  check if dir exists
+        path = params['env'].get('workdir', None)
+        if path and os.path.exists(path):
+            shutil.rmtree(path)
