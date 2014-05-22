@@ -287,7 +287,19 @@ def biodiverse_task(self, params, context):
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
         outfile = open(scriptout, 'w')
-        cmd = ["perl", scriptname]
+        #cmd = ["scl", "enable", "perl516", "perl", scriptname]
+        # FIXME: check that scriptname doesn't do anything funny with shell features
+        #        do better environment setup than with ~/.bashrc
+        wrapper = os.path.join(params['env']['scriptdir'], 'wrap.sh')
+        open(wrapper, 'w').write(r'''#!/bin/bash
+        echo "PATH before: $PERL5LIB"
+        # setup local::lib
+        eval "$(scl enable perl516 \\"perl -I$HOME/perl5/lib/perl5 -Mlocal::lib\\")"
+        # add biodivers to path
+        export PERL5LIB="${PERL5LIB:+${PERL5LIB}:}$HOME/biodiverse/lib"
+        perl $*
+        ''')
+        cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 stdout=outfile, stderr=subprocess.STDOUT)
