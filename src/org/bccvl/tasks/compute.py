@@ -54,41 +54,18 @@ def sdm_task(self, params, context):
         # transfer input files
         transfer_inputs(params, context)
         # create script
-        scriptname = os.path.join(params['env']['scriptdir'],
-                                  params['worker']['script']['name'])
-        scriptfile = open(scriptname, 'w')
-        scriptfile.write(params['worker']['script']['script'])
-        scriptfile.close()
-        # write params.json
-        jsonfile = open(os.path.join(params['env']['scriptdir'],
-                                     'params.json'),
-                        'w')
-        json.dump(params, jsonfile, default=decimal_encoder,
-                  sort_keys=True, indent=4)
-        jsonfile.close()
+        scriptname = create_scripts(params, context)
 
         # run the script
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
-        #cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
         # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
+        # FIXME: do better env setup
         cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
-        #outfile = open(scriptout, 'w')
-        #cmd = ["Rscript", "--no-save", "--no-restore", scriptname]
-        LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
-        #proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
-        #                        stdout=outfile, stderr=subprocess.STDOUT)
-        # capture process statistics here
         ret = proc.wait()
-        #outfile.close()
-        if ret != 0:
-            errmsg = 'Script execution faild with exit code {0}'.format(ret)
-            app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', errmsg, context))
-            raise Exception(errmsg)
 
         # move results back
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -98,6 +75,13 @@ def sdm_task(self, params, context):
         # we are done here, hand over to result importer
         app.send_task("org.bccvl.tasks.plone.import_result",
                       args=(params, context))
+
+        if ret != 0:
+            errmsg = 'Script execution faild with exit code {0}'.format(ret)
+            app.send_task("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', errmsg, context))
+            raise Exception(errmsg)
+
     except Exception as e:
         # TODO: capture stacktrace
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -184,6 +168,22 @@ def transfer_inputs(params, context):
             # if it's not a zip, then there is nothing to do
 
 
+def create_scripts(params, context):
+        scriptname = os.path.join(params['env']['scriptdir'],
+                                  params['worker']['script']['name'])
+        scriptfile = open(scriptname, 'w')
+        scriptfile.write(params['worker']['script']['script'])
+        scriptfile.close()
+        # write params.json
+        jsonfile = open(os.path.join(params['env']['scriptdir'],
+                                     'params.json'),
+                        'w')
+        json.dump(params, jsonfile, default=decimal_encoder,
+                  sort_keys=True, indent=4)
+        jsonfile.close()
+        return scriptname
+
+
 def transfer_outputs(params, context):
     move_tasks = []
     for fpath in os.listdir(params['env']['outputdir']):
@@ -268,18 +268,7 @@ def biodiverse_task(self, params, context):
         # transfer input files
         transfer_inputs(params, context)
         # create script
-        scriptname = os.path.join(params['env']['scriptdir'],
-                                  params['worker']['script']['name'])
-        scriptfile = open(scriptname, 'w')
-        scriptfile.write(params['worker']['script']['script'])
-        scriptfile.close()
-        # write params.json
-        jsonfile = open(os.path.join(params['env']['scriptdir'],
-                                     'params.json'),
-                        'w')
-        json.dump(params, jsonfile, default=decimal_encoder,
-                  sort_keys=True, indent=4)
-        jsonfile.close()
+        scriptname = create_scripts(params, context)
 
         # run the script
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -287,7 +276,7 @@ def biodiverse_task(self, params, context):
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
         outfile = open(scriptout, 'w')
-        #cmd = ["scl", "enable", "perl516", "perl", scriptname]
+
         # FIXME: check that scriptname doesn't do anything funny with shell features
         #        do better environment setup than with ~/.bashrc
         wrapper = os.path.join(params['env']['scriptdir'], 'wrap.sh')
@@ -306,11 +295,6 @@ def biodiverse_task(self, params, context):
         # capture process statistics here
         ret = proc.wait()
         outfile.close()
-        if ret != 0:
-            errmsg = 'Script execution faild with exit code {0}'.format(ret)
-            app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', errmsg, context))
-            raise Exception(errmsg)
 
         # move results back
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -320,6 +304,13 @@ def biodiverse_task(self, params, context):
         # we are done here, hand over to result importer
         app.send_task("org.bccvl.tasks.plone.import_result",
                       args=(params, context))
+
+        if ret != 0:
+            errmsg = 'Script execution faild with exit code {0}'.format(ret)
+            app.send_task("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', errmsg, context))
+            raise Exception(errmsg)
+
     except Exception as e:
         # TODO: capture stacktrace
         app.send_task("org.bccvl.tasks.plone.set_progress",
