@@ -71,18 +71,19 @@ def sdm_task(self, params, context):
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
-                                 scriptname + 'out')
+                                 params['worker']['script']['name'] + 'out')
         #cmd = ["R", "CMD", "BATCH", "--vanilla", scriptname, scriptout]
         # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
-        #cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
-        outfile = open(scriptout, 'w')
-        cmd = ["Rscript", "--no-save", "--no-restore", scriptname]
+        cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
+        #outfile = open(scriptout, 'w')
+        #cmd = ["Rscript", "--no-save", "--no-restore", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
-        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
-                                stdout=outfile, stderr=outfile)
+        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
+        #proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+        #                        stdout=outfile, stderr=subprocess.STDOUT)
         # capture process statistics here
         ret = proc.wait()
-        outfile.close()
+        #outfile.close()
         if ret != 0:
             errmsg = 'Script execution faild with exit code {0}'.format(ret)
             app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -284,12 +285,12 @@ def biodiverse_task(self, params, context):
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
-                                 scriptname + 'out')
+                                 params['worker']['script']['name'] + 'out')
         outfile = open(scriptout, 'w')
         cmd = ["perl", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
-                                stdout=outfile, stderr=outfile)
+                                stdout=outfile, stderr=subprocess.STDOUT)
         # capture process statistics here
         ret = proc.wait()
         outfile.close()
