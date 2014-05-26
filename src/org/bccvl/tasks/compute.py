@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from pkg_resources import resource_string
 import json
 from decimal import Decimal
 import subprocess
@@ -16,32 +17,24 @@ from celery.utils.log import get_task_logger
 
 LOG = get_task_logger(__name__)
 
-# FIXME: in case of any errors, we still have to capture the log output and clean up import temp folder
 
-
-# ALA import is a chain of tasks
-# 1. start download
-# 2. initate import
-
-# TODO:  this is a very short lived task and can basically run anywhere
-#        maybe put in default queue?
-# TODO: could add callbacks with each task. It would be possible to modify
-#       list of callbacks and errbacks within each task
-
-# submit after transaction commit, otherwise we may submit it
-# multiple times in case of conflicterrors, or kick off task for
-# non existent content, in case task starts before this transaction
-# commits
-#@app.task(base=plone.AfterCommitTask, bind = True)
 @app.task(bind=True)
-def sdm_task(self, params, context):
-    """
-    lsid .. species id
-    path ... destination path for ala import files
-    context ... a dictionary with keys:
-      - context: path to context object
-      - userid: zope userid
-    """
+def r_task(self, params, context):
+    # 1. get R wrapper
+    wrapper = resource_string('org.bccvl.tasks', 'r_wrapper.sh')
+    # 2. run task
+    run_script(wrapper, params, context)
+
+
+@app.task(bind=True)
+def perl_task(params, context):
+    # 1. get perl wrapper
+    wrapper = resource_string('org.bccvl.tasks', 'perl_wrapper.sh')
+    # 2. run task
+    run_script(wrapper, params, context)
+
+
+def run_script(wrapper, params, context):
     try:
 
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -55,17 +48,21 @@ def sdm_task(self, params, context):
         transfer_inputs(params, context)
         # create script
         scriptname = create_scripts(params, context)
-
         # run the script
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Executing job', context))
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
-        # Don't use--vanilla as it prohibits loading .Renviron which we use to find pre-installed rlibs .... may pre install them in some location as root to avoid modification?
-        # FIXME: do better env setup
-        cmd = ["R", "CMD", "BATCH", "--no-save", "--no-restore", scriptname, scriptout]
-        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'])
-        ret = proc.wait()
+        outfile = open(scriptout, 'w')
+        wrapsh = os.path.join(params['env']['scriptdir'], 'wrap.sh')
+        open(wrapsh, 'w').write(wrapper)
+        cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
+        LOG.info("Executing: %s", ' '.join(cmd))
+        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+                                stdout=outfile, stderr=subprocess.STDOUT)
+        rpid, ret, rusage = os.wait4(proc.pid)
+        writerusage(rusage, params)
+        # TODO: check whether ret and proc.returncode are the same
 
         # move results back
         app.send_task("org.bccvl.tasks.plone.set_progress",
@@ -81,11 +78,10 @@ def sdm_task(self, params, context):
             app.send_task("org.bccvl.tasks.plone.set_progress",
                           args=('FAILED', errmsg, context))
             raise Exception(errmsg)
-
     except Exception as e:
         # TODO: capture stacktrace
         app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', 'SDM failed {}'.format(repr(e)),
+                      args=('FAILED', 'Biodiverse failed {}'.format(repr(e)),
                             context))
         raise e
     finally:
@@ -131,20 +127,9 @@ def transfer_inputs(params, context):
                 continue
             move_tasks[ip['uuid']] = get_move_args(ip, params, context)
 
-    # all move_tasks collected; kick of move
-    dm = datamover.DataMover()
-    states = dm.move(
-        [task['args'] for task in move_tasks.values()])
-    states = dm.wait(states)
-    errmsgs = []
-    for state in states:
-        if state['status'] in dm.failed_states:
-            errmsgs.append('Move job {0} failed: {1}: {2}'.format(
-                state.get('id', '0'), state['status'], state['reason']))
-    if errmsgs:
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', '\n'.join(errmsgs), context))
-        raise Exception('One or more move jobs failed')
+    # all move_tasks collected; call move task directly (don't send to queue)
+    datamover.move([task['args'] for task in move_tasks.values()],
+                   context)
 
     # all data successfully transferred
     # unpack all zip files and update filenames to local files
@@ -199,18 +184,8 @@ def transfer_outputs(params, context):
              'host': 'plone',
              'path': destpath})
         )
-    dm = datamover.DataMover()
-    states = dm.move(move_tasks)
-    states = dm.wait(states)
-    errmsgs = []
-    for state in states:
-        if state['status'] in dm.failed_states:
-            errmsgs.append('Move job {0} failed: {1}: {2}'.format(
-                state.get('id', '0'), state['status'], state['reason']))
-    if errmsgs:
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', '\n'.join(errmsgs), context))
-        raise Exception('One or more move jobs failed')
+    # call move task directly, to run it in process
+    datamover.move(move_tasks, context)
 
 
 def get_move_args(file_descr, params, context):
@@ -246,79 +221,25 @@ def decimal_encoder(o):
     raise TypeError(repr(o) + " is not JSON serializable")
 
 
-# FIXME: enormous amount of duplicate code here (see sdm_task)
-@app.task(bind=True)
-def biodiverse_task(self, params, context):
-    """
-    lsid .. species id
-    path ... destination path for ala import files
-    context ... a dictionary with keys:
-      - context: path to context object
-      - userid: zope userid
-    """
-    try:
-
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('SUBMITTED', 'SUBMITTED', context))
-
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Transferring data', context))
-        # create initial folder structure
-        create_workenv(params)
-        # transfer input files
-        transfer_inputs(params, context)
-        # create script
-        scriptname = create_scripts(params, context)
-
-        # run the script
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Executing job', context))
-        scriptout = os.path.join(params['env']['outputdir'],
-                                 params['worker']['script']['name'] + 'out')
-        outfile = open(scriptout, 'w')
-
-        # FIXME: check that scriptname doesn't do anything funny with shell features
-        #        do better environment setup than with ~/.bashrc
-        wrapper = os.path.join(params['env']['scriptdir'], 'wrap.sh')
-        open(wrapper, 'w').write(r'''#!/bin/bash
-        echo "PATH before: $PERL5LIB"
-        # setup local::lib
-        eval "$(scl enable perl516 \\"perl -I$HOME/perl5/lib/perl5 -Mlocal::lib\\")"
-        # add biodivers to path
-        export PERL5LIB="${PERL5LIB:+${PERL5LIB}:}$HOME/biodiverse/lib"
-        perl $*
-        ''')
-        cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
-        LOG.info("Executing: %s", ' '.join(cmd))
-        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
-                                stdout=outfile, stderr=subprocess.STDOUT)
-        # capture process statistics here
-        ret = proc.wait()
-        outfile.close()
-
-        # move results back
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Transferring outputs', context))
-        transfer_outputs(params, context)
-
-        # we are done here, hand over to result importer
-        app.send_task("org.bccvl.tasks.plone.import_result",
-                      args=(params, context))
-
-        if ret != 0:
-            errmsg = 'Script execution faild with exit code {0}'.format(ret)
-            app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', errmsg, context))
-            raise Exception(errmsg)
-
-    except Exception as e:
-        # TODO: capture stacktrace
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', 'Biodiverse failed {}'.format(repr(e)),
-                            context))
-        raise e
-    finally:
-        # TODO:  check if dir exists
-        path = params['env'].get('workdir', None)
-        if path and os.path.exists(path):
-            shutil.rmtree(path)
+def writerusage(rusage, params):
+    names = ('ru_utime', 'ru_stime',
+             'ru_maxrss', 'ru_ixrss', 'ru_idrss', 'ru_isrss',
+             'ru_minflt', 'ru_majflt', 'ru_nswap', 'ru_inblock', 'ru_oublock',
+             'ru_msgsnd', 'ru_msgrcv', 'ru_nsignals', 'ru_nvcsw', 'ru_nicsw')
+    procstats = {'rusage': dict(zip(names, rusage))}
+    statsfile = open(os.path.join(params['env']['outputdir'],
+                                  'pstats.json'),
+                     'w')
+    json.dump(procstats, statsfile, default=decimal_encoder,
+              sort_keys=True, indent=4)
+    statsfile.close()
+    # cputime= utime+ stime (virtual cpu time)
+    # average unshared data size: idrss/cputime+ isrss/cputime (wall could be 0)
+    # Wall: separate elapsed timer?
+    # average mem usage idrss/cputime+isrss/cputime+ixrss+cputime
+    # %cpu= (cputime*100/elapsed time)
+    # average shared text: ixrss/cputime
+    # average stack segments: isrss/cputime
+    # average resident set size: idrss/cputime
+    # maybe I can get start time from subprocess object?
+    # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
