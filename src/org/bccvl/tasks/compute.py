@@ -225,7 +225,7 @@ def writerusage(rusage, params):
     names = ('ru_utime', 'ru_stime',
              'ru_maxrss', 'ru_ixrss', 'ru_idrss', 'ru_isrss',
              'ru_minflt', 'ru_majflt', 'ru_nswap', 'ru_inblock', 'ru_oublock',
-             'ru_msgsnd', 'ru_msgrcv', 'ru_nsignals', 'ru_nvcsw', 'ru_nicsw')
+             'ru_msgsnd', 'ru_msgrcv', 'ru_nsignals', 'ru_nvcsw', 'ru_nivcsw')
     procstats = {'rusage': dict(zip(names, rusage))}
     statsfile = open(os.path.join(params['env']['outputdir'],
                                   'pstats.json'),
