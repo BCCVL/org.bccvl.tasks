@@ -4,30 +4,119 @@ from xmlrpclib import ServerProxy
 import logging
 import time
 import os
-
+from httplib import HTTPSConnection
+import socket
+import xmlrpclib
+import ssl
 from org.bccvl.tasks.celery import app
 
 LOG = logging.getLogger('__name__')
 
 
-class DataMover(object):
-    # TODO: depending on url discovery it wolud be possible
-    #       to register this as utility factory and keep a
-    #       serverproxy instance for the lifetime of this utility
-    # TODO: call to xmlrpc server might also throw socket
-    #       errors. (e.g. socket.error: [Errno 61] Connection refused)
+class VerifyingHTTPSConnection(HTTPSConnection):
+    """A httplib HTTPSConnection that sends a client cert and verifies the
+    host certificate
 
-    url = os.environ.get('DATA_MOVER',
-                         u'http://127.0.0.1:10700/data_mover')
+    """
+
+    def __init__(self, host, port=None, key_file=None, cert_file=None,
+                 strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+                 source_address=None, ca_certs=None):
+        HTTPSConnection.__init__(self, host, port,
+                                 key_file, cert_file, strict,
+                                 timeout, source_address)
+        self.ca_certs = ca_certs
+
+    def connect(self):
+        "Connect to a host on a given (SSL) port."
+
+        sock = socket.create_connection((self.host, self.port),
+                                        self.timeout, self.source_address)
+        if self._tunnel_host:
+            self.sock = sock
+            self._tunnel()
+        # verify server cert against ca_certs
+        self.sock = ssl.wrap_socket(sock,
+                                    cert_reqs=ssl.CERT_REQUIRED,
+                                    ssl_version=ssl.PROTOCOL_TLSv1,
+                                    ca_certs=self.ca_certs,
+                                    keyfile=self.key_file,
+                                    certfile=self.cert_file)
+
+
+class SSLSafeTransport(xmlrpclib.SafeTransport):
+    """A xmlrpclib Transport which uses VerifyingHTTSPConnection ta talk
+    to a xmlpc server
+
+    """
+
+    # host can be a tuple .... ('url', {sslparams})
+    # sslparams: see abov what VerifyingHTTPSConnection accets and wrap_socket
+    def __init__(self, ca_certs, keyfile, certfile):
+        xmlrpclib.SafeTransport.__init__(self)
+        self.ca_certs = ca_certs
+        self.keyfile = keyfile
+        self.certfile = certfile
+
+    def make_connection(self, host):
+        # FIXME: should support non ssl connections as well here
+        if self._connection and host == self._connection[0]:
+            return self._connection[1]
+        # create a HTTPS connection object from a host descriptor
+        # host may be a string, or a (host, x509-dict) tuple
+        chost, self._extra_headers, _ = self.get_host_info(host)
+        # TODO: inconsistent naming,...
+        #       HTTPSConnection uses key_file, but sslwrap uses
+        #       keyfile
+        x509 = {'ca_certs': self.ca_certs,
+                'key_file': self.keyfile,
+                'cert_file': self.certfile}
+        self._connection = (host,
+                            VerifyingHTTPSConnection(chost, None,
+                                                     **(x509 or {})))
+        return self._connection[1]
+
+
+class VerifyingServerProxy(xmlrpclib.ServerProxy):
+
+    def __init__(self, uri, transport=None, encoding=None, verbose=0,
+                 allow_none=0, use_datetime=0, x509=None):
+        # in case we have x509 config, we use SSLSafeTransport
+        if transport is None and x509:
+            transport = SSLSafeTransport(**x509)
+        xmlrpclib.ServerProxy.__init__(self, uri, transport, encoding, verbose,
+                                       allow_none, use_datetime)
+
+
+class DataMover(object):
+    """A little helper class to talk to the data mover.
+    """
 
     active_states = ('PENDING', 'IN_PROGRESS')
     failed_states = ('FAILED', 'REJECTED')
     success_states = ('COMPLETED', )
 
     def __init__(self):
+        self._proxy = None
         # TODO: get data_mover location from config file
         #       or some other discovery mechanism
-        self.proxy = ServerProxy(self.url)
+        # FIXME: make cerfiles configurable
+        self.url = os.environ.get('DATA_MOVER',
+                                  u'http://127.0.0.1:10700/data_mover')
+        self.ca_certs = '/etc/pki/tls/bccvlca.crt.pem'
+        self.keyfile = '/home/bccvl/worker/worker.key.pem'
+        self.certfile = '/home/bccvl/worker/worker.crt.pem'
+
+    @property
+    def proxy(self):
+        if self._proxy is None:
+            x509 = {
+                'ca_certs': self.ca_certs,
+                'keyfile': self.keyfile,
+                'certfile': self.certfile
+            }
+            self._proxy = VerifyingServerProxy(self.url, x509=x509)
+        return self._proxy
 
     def move(self, move_args):
         states = []
@@ -54,9 +143,10 @@ class DataMover(object):
         return ret
 
 
-# TODO: these jobs need access to a datamover instance. they way be long running,
-#       current job chaining requires that a move tasks runs as long as the move job itself takes
-#       also the datamover doesn't support job finished notification
+# TODO: these jobs need access to a datamover instance. they way be
+#       long running, current job chaining requires that a move tasks
+#       runs as long as the move job itself takes also the datamover
+#       doesn't support job finished notification
 # TODO: look at using routing keys to utilise multiple data movers
 @app.task(throws=(Exception, ), bind=True)
 def move(self, arglist, context):
@@ -72,7 +162,9 @@ def move(self, arglist, context):
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state.get('id', -1), state['status'], state['reason']))
     if errmsgs:
-        # FIXME we rely here on failed state, but if this code is skipped for some reason, the ui will never see the failed state.-> do this in task_chain
+        # FIXME: we rely here on failed state, but if this code is
+        #        skipped for some reason, the ui will never see the
+        #        failed state.-> do this in task_chain
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
