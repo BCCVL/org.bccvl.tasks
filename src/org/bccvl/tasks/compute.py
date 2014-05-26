@@ -60,7 +60,7 @@ def run_script(wrapper, params, context):
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid)
+        rpid, ret, rusage = os.wait4(proc.pid, 0)
         writerusage(rusage, params)
         # TODO: check whether ret and proc.returncode are the same
 
