@@ -72,13 +72,14 @@ def zope_task(**task_kw):
     # kw['site_path'] ... path to plone root
     # os.environ['ZOPE_CONFIG']
     def wrap(func):
-        def new_func(*args, **kw):
+        bind = task_kw.get('bind', False)
+        def new_func(self, *args, **kw):
             # This is a super ugly way of getting Zope to configure itself
             # from the main instance's zope.conf. XXX FIXME
             sys.argv = ['']
             if 'ZOPE_CONFIG' not in os.environ:
                 os.environ['ZOPE_CONFIG'] = 'parts/instance/etc/zope.conf'
-            app = makerequest(Zope2.app())
+            zapp = makerequest(Zope2.app())
 
             transaction.begin()
 
@@ -92,7 +93,7 @@ def zope_task(**task_kw):
                     #   traverse each one separately checking the
                     #   result for ISiteRoot
                     ctxt_path = ctxt['context'].strip().strip('/').split('/')
-                    site = obj = app
+                    site = obj = zapp
                     for name in ctxt_path:
                         obj = obj.unrestrictedTraverse(str(name))
                         if IPloneSiteRoot.providedBy(obj):
@@ -120,27 +121,31 @@ def zope_task(**task_kw):
                     newSecurityManager(None, user)
 
                     # run the task
-                    result = func(*args, **kw)
+                    if bind:
+                        result = func(self, *args, **kw)
+                    else:
+                        result = func(*args, **kw)
 
                     # commit transaction
                     transaction.commit()
                 except ConflictError, e:
                     # On ZODB conflicts, retry using celery's mechanism
                     transaction.abort()
-                    raise new_func.retry(exc=e)
+                    raise self.retry(exc=e)
                 except:
                     transaction.abort()
                     raise
             finally:
                 noSecurityManager()
                 setSite(None)
-                app._p_jar.close()
+                zapp._p_jar.close()
 
             return result
 
         new_func.__name__ = func.__name__
 
         aftercommit = task_kw.pop('aftercommit', False)
+        task_kw['bind'] = True
         if aftercommit:
             return app.task(base=AfterCommitTask, **task_kw)(new_func)
         else:
