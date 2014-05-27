@@ -83,7 +83,7 @@ class VerifyingServerProxy(xmlrpclib.ServerProxy):
                  allow_none=0, use_datetime=0, x509=None):
         # in case we have a ssl url and x509 config, we use SSLSafeTransport
         scheme = urlsplit(uri).scheme
-        if transport is None and scheme.lower == 'https' and x509:
+        if transport is None and scheme.lower() == 'https' and x509:
             transport = SSLSafeTransport(**x509)
         xmlrpclib.ServerProxy.__init__(self, uri, transport, encoding, verbose,
                                        allow_none, use_datetime)
