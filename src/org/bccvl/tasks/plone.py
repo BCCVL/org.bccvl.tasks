@@ -130,6 +130,8 @@ def zope_task(**task_kw):
                     transaction.commit()
                 except ConflictError, e:
                     # On ZODB conflicts, retry using celery's mechanism
+                    LOG.info("ConflictError, retrying task %s for the %d time",
+                             self.name, self.request.retries)
                     transaction.abort()
                     raise self.retry(exc=e)
                 except:
@@ -190,8 +192,9 @@ def import_result(params, context, **kw):
         transmogrifier(u'org.bccvl.compute.resultimport',
                        resultsource={'path': params['result']['results_dir'],
                                      'outputmap': params['result']['outputs']})
-        set_progress.delay('COMPLETED', 'SUCCESS', context)
+        after_commit_task(set_progress.si('COMPLETED', 'SUCCESS', context))
     except Exception as e:
+        # TODO: don't send state in case we want to retry'
         set_progress.delay('FAILED', str(e), context)
         raise
     #raise ValueError('move failed')
