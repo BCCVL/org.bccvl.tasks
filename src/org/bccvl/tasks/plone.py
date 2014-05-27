@@ -16,6 +16,7 @@ from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl import SpecialUsers
 from Testing.makerequest import makerequest
 from ZODB.POSException import ConflictError
+from ZPublisher.Publish import Retry as RetryException
 import Zope2
 from zope.event import notify
 from zope.app.publication.interfaces import BeforeTraverseEvent
@@ -27,6 +28,7 @@ from org.bccvl.site.interfaces import IJobTracker
 
 
 class AfterCommitTask(Task):
+    # TODO: looks like we don't need this class'
     """Base for tasks that queue themselves after commit.
 
     This is intended for tasks scheduled from inside Zope.
@@ -73,6 +75,7 @@ def zope_task(**task_kw):
     # os.environ['ZOPE_CONFIG']
     def wrap(func):
         bind = task_kw.get('bind', False)
+
         def new_func(self, *args, **kw):
             # This is a super ugly way of getting Zope to configure itself
             # from the main instance's zope.conf. XXX FIXME
@@ -81,62 +84,77 @@ def zope_task(**task_kw):
                 os.environ['ZOPE_CONFIG'] = 'parts/instance/etc/zope.conf'
             zapp = makerequest(Zope2.app())
 
-            transaction.begin()
-
             try:
-                try:
-                    # assume zope context info is either in kw or last in args
-                    ctxt = kw.get('context', args[-1])
-                    userid = ctxt['userid']
-                    #-> split path components in
-                    #   context['context_path'], convert to str and
-                    #   traverse each one separately checking the
-                    #   result for ISiteRoot
-                    ctxt_path = ctxt['context'].strip().strip('/').split('/')
-                    site = obj = zapp
-                    for name in ctxt_path:
-                        obj = obj.unrestrictedTraverse(str(name))
-                        if IPloneSiteRoot.providedBy(obj):
-                            # fire traversal event so various things get set up
-                            site = obj
-                            notify(BeforeTraverseEvent(site, site.REQUEST))
-                    # if we are still here, context has been found
-                    # let's extend kw with what we have found
-                    kw['_site'] = site
-                    kw['_context'] = obj
+                zodb_retries = 3
+                retryable = (ConflictError, RetryException)
+                while zodb_retries > 0:
+                    try:
+                        transaction.begin()
 
-                    # set up security manager
-                    uf = getattr(site, 'acl_users', None)
-                    user = None
-                    while uf is not None:
-                        user = uf.getUserById(userid)
-                        if user is not None:
-                            break
-                        parent = uf.__parent__.__parent__
-                        uf = getattr(parent, 'acl_users', None)
-                    if user is None:
-                        # No user found anywhere, so let's us our
-                        # special nobody user
-                        user = SpecialUsers.nobody
-                    newSecurityManager(None, user)
+                        # assume zope context info is either in kw or last in args
+                        ctxt = kw.get('context', args[-1])
+                        userid = ctxt['userid']
+                        #-> split path components in
+                        #   context['context_path'], convert to str and
+                        #   traverse each one separately checking the
+                        #   result for ISiteRoot
+                        ctxt_path = ctxt['context'].strip().strip('/').split('/')
+                        site = obj = zapp
+                        for name in ctxt_path:
+                            obj = obj.unrestrictedTraverse(str(name))
+                            if IPloneSiteRoot.providedBy(obj):
+                                # fire traversal event so various things get set up
+                                site = obj
+                                notify(BeforeTraverseEvent(site, site.REQUEST))
+                        # if we are still here, context has been found
+                        # let's extend kw with what we have found
+                        kw['_site'] = site
+                        kw['_context'] = obj
 
-                    # run the task
-                    if bind:
-                        result = func(self, *args, **kw)
-                    else:
-                        result = func(*args, **kw)
+                        # set up security manager
+                        uf = getattr(site, 'acl_users', None)
+                        user = None
+                        while uf is not None:
+                            user = uf.getUserById(userid)
+                            if user is not None:
+                                break
+                            parent = uf.__parent__.__parent__
+                            uf = getattr(parent, 'acl_users', None)
+                        if user is None:
+                            # No user found anywhere, so let's us our
+                            # special nobody user
+                            user = SpecialUsers.nobody
+                        newSecurityManager(None, user)
 
-                    # commit transaction
-                    transaction.commit()
-                except ConflictError, e:
-                    # On ZODB conflicts, retry using celery's mechanism
-                    LOG.info("ConflictError, retrying task %s for the %d time",
-                             self.name, self.request.retries)
-                    transaction.abort()
-                    raise self.retry(exc=e)
-                except:
-                    transaction.abort()
-                    raise
+                        # run the task
+                        if bind:
+                            result = func(self, *args, **kw)
+                        else:
+                            result = func(*args, **kw)
+
+                        # commit transaction
+                        transaction.commit()
+                        # seems like all wont well. let's jump out of retry loop
+                        break
+                    except retryable as e:
+                        # On ZODB conflicts, retry using celery's mechanism
+                        LOG.info("ConflictError, retrying task %s: %d retries left",
+                                 self.name, zodb_retries)
+                        transaction.abort()
+                        # first retry the transaction ourselves
+                        zodb_retries -= 1
+                        if zodb_retries > 0:
+                            # we still have retries left
+                            continue
+                        # let celery re-schedule it
+                        LOG.warn("Couldn't recover task %s with normal zodb retries, reschedule for the %d time.",
+                                 self.name, self.request.retries)
+                        raise self.retry(exc=e)
+                    except:
+                        # a non retrieable error happened
+                        transaction.abort()
+                        # TODO: preserve stack trace somehow
+                        raise
             finally:
                 noSecurityManager()
                 setSite(None)
