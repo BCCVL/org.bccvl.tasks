@@ -156,25 +156,20 @@ def zope_task(**task_kw):
 # TODO: these jobs need to run near a zodb or plone instance
 @zope_task(throws=(Exception, ))
 def import_ala(path, lsid, context, **kw):
-    set_progress.delay('RUNNING', 'IMPORT', context)
     from collective.transmogrifier.transmogrifier import Transmogrifier
     metadata_file = 'ala_dataset.json'
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    try:
-        LOG.info("import ala %s to %s", path, context)
-        transmogrifier = Transmogrifier(kw['_context'].__parent__)
-        transmogrifier(u'org.bccvl.site.alaimport',
-                       alasource={'file': os.path.join(path, metadata_file),
-                                  'lsid': lsid,
-                                  'id': kw['_context'].getId()})
-    except Exception as e:
-        set_progress.delay('FAILED', str(e), context)
-        raise
-    #raise ValueError('move failed')
+    LOG.info("import ala %s to %s", path, context)
+    transmogrifier = Transmogrifier(kw['_context'].__parent__)
+    transmogrifier(u'org.bccvl.site.alaimport',
+                   alasource={'file': os.path.join(path, metadata_file),
+                              'lsid': lsid,
+                              'id': kw['_context'].getId()})
 
 
 # TODO: this may not need a plone instance?
+# TODO: this task is not allowed to fail
 @app.task(throws=(Exception, ))
 def import_cleanup(path, context, **kw):
     # In case a previous step failed we still have to clean up
@@ -202,6 +197,7 @@ def import_result(params, context, **kw):
     #raise ValueError('move failed')
 
 
+# TODO: this task is not allowed to fail
 @zope_task()
 def set_progress(state, message, context, **kw):
     jt = IJobTracker(kw['_context'])
