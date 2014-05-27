@@ -27,32 +27,40 @@ def ala_import(lsid, path, context):
       - context: path to context object
       - userid: zope userid
     """
-    # TODO: maybe add current job id to context?
-    # TODO: I could add callbacks/errbacks in job themselves,
-    #       allows to add additional error information without waiting for return values here
-    plone.set_progress.delay('SUBMITTED', 'SUBMITTED', context)
 
-    # failed_job = plone.set_progress.si('FAILED', 'FAILED', context)
-
-    # TODO: make context(userid, and context path explicit parameters?)
-    import_job = plone.import_ala.si(path, lsid, context)
-    # in case the import failed, set job state
-    # import_job.link_error(failed_job)
-
-    cleanup_job = plone.import_cleanup.si(path, context)
-    # if we run a cleanup the job has failed
-    # cleanup_job.link(failed_job)
-    # cleanup_job.link_error(failed_job)
-
+    # 1. set progress info
+    # TODO: can this one fail as well?
+    start_download = plone.set_progress.si('RUNNING', 'Download {0} from ala'.format(lsid), context)
+    # 2. do move
     move_job = datamover.move.si([
         ({'type': 'ala', 'lsid': lsid},
          {'host': 'plone', 'path': path})],
         context)
     # we'll have to clean up if move fails'
-    move_job.link_error(cleanup_job)
+    move_job.link_error(
+        # TODO: allow passing in result/exception of previous job
+        plone.set_progress.si('FAILED',
+                             'Datamover failed to download {0} from ala'.format(lsid), context))
+    move_job.link_error(plone.import_cleanup.si(path, context))
 
-    success_job = plone.set_progress.si('COMPLETED', 'SUCCESS', context)
+    # 3. import data
+    start_import = plone.set_progress.si('RUNNING', 'Import {0} from ala'.format(lsid), context)
 
-    ala_job = move_job | import_job | success_job
+    import_job = plone.import_ala.si(path, lsid, context)
+    # in case the import failed, set job state
+    import_job.link_error(
+        # TODO: allow passing in result/exception of previous job
+        plone.set_progress.si('FAILED',
+                             'Import of ala data for {0} failed.'.format(lsid), context))
+    import_job.link_error(plone.import_cleanup.si(path, lsid, context))
+
+    # 4. success and cleanup
+    success_job = plone.set_progress.si(
+        'COMPLETED',
+        'Import of ala data for {0} finished.'.format(lsid), context)
+    cleanup_job = plone.import_cleanup.si(path, lsid, context)
+
+    # chain all jobs together
+    ala_job = start_download | move_job | start_import | import_job | success_job | cleanup_job
 
     return ala_job
