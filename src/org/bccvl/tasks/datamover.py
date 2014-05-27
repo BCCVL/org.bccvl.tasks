@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-from xmlrpclib import ServerProxy
 import logging
 import time
 import os
@@ -8,6 +7,7 @@ from httplib import HTTPSConnection
 import socket
 import xmlrpclib
 import ssl
+from urlparse import urlsplit
 from org.bccvl.tasks.celery import app
 
 LOG = logging.getLogger('__name__')
@@ -81,8 +81,9 @@ class VerifyingServerProxy(xmlrpclib.ServerProxy):
 
     def __init__(self, uri, transport=None, encoding=None, verbose=0,
                  allow_none=0, use_datetime=0, x509=None):
-        # in case we have x509 config, we use SSLSafeTransport
-        if transport is None and x509:
+        # in case we have a ssl url and x509 config, we use SSLSafeTransport
+        scheme = urlsplit(uri).scheme
+        if transport is None and scheme.lower == 'https' and x509:
             transport = SSLSafeTransport(**x509)
         xmlrpclib.ServerProxy.__init__(self, uri, transport, encoding, verbose,
                                        allow_none, use_datetime)
