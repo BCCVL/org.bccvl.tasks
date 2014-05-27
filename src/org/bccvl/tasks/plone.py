@@ -182,22 +182,14 @@ def import_cleanup(path, context, **kw):
 
 @zope_task(throws=(Exception, ))
 def import_result(params, context, **kw):
-    set_progress.delay('RUNNING', 'IMPORT', context)
     from collective.transmogrifier.transmogrifier import Transmogrifier
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    try:
-        LOG.info("import results %s to %s", params['result']['results_dir'], context)
-        transmogrifier = Transmogrifier(kw['_context'])
-        transmogrifier(u'org.bccvl.compute.resultimport',
-                       resultsource={'path': params['result']['results_dir'],
-                                     'outputmap': params['result']['outputs']})
-        after_commit_task(set_progress.si('COMPLETED', 'SUCCESS', context))
-    except Exception as e:
-        # TODO: don't send state in case we want to retry'
-        set_progress.delay('FAILED', str(e), context)
-        raise
-    #raise ValueError('move failed')
+    LOG.info("import results %s to %s", params['result']['results_dir'], context)
+    transmogrifier = Transmogrifier(kw['_context'])
+    transmogrifier(u'org.bccvl.compute.resultimport',
+                   resultsource={'path': params['result']['results_dir'],
+                                 'outputmap': params['result']['outputs']})
 
 
 # TODO: this task is not allowed to fail

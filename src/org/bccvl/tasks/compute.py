@@ -36,10 +36,6 @@ def perl_task(params, context):
 
 def run_script(wrapper, params, context):
     try:
-
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('SUBMITTED', 'SUBMITTED', context))
-
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Transferring data', context))
         # create initial folder structure
@@ -70,19 +66,58 @@ def run_script(wrapper, params, context):
         transfer_outputs(params, context)
 
         # we are done here, hand over to result importer
-        app.send_task("org.bccvl.tasks.plone.import_result",
-                      args=(params, context))
+        # build a chain of the remaining tasks
+        start_import = app.signature(
+            "org.bccvl.tasks.plone.set_progress",
+            args=('RUNNING', 'Import results', context),
+            immutable=True)
+
+        import_job = app.signature("org.bccvl.tasks.plone.import_result",
+                                   args=(params, context),
+                                   immutable=True)
+        import_job.link_error(
+            # TODO: allow passing in result/exception of previous job
+            app.signature("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', 'Result import failed',
+                                context),
+                          immutable=True))
 
         if ret != 0:
             errmsg = 'Script execution faild with exit code {0}'.format(ret)
-            app.send_task("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', errmsg, context))
-            raise Exception(errmsg)
+            finish_job = app.signature(
+                "org.bccvl.tasks.plone.set_progress",
+                args=('FAILED', errmsg, context),
+                immutable=True)
+        else:
+            finish_job = app.signature(
+                "org.bccvl.tasks.plone.set_progress",
+                args=('COMPLETED', 'Task succedded', context),
+                immutable=True)
+
+        (start_import | import_job | finish_job).delay()
+
     except Exception as e:
         # TODO: capture stacktrace
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', 'Biodiverse failed {}'.format(repr(e)),
-                            context))
+        # need to start import to get import cleaned up
+        start_import = app.signature(
+            "org.bccvl.tasks.plone.set_progress",
+            args=('RUNNING', 'Import results', context),
+            immutable=True)
+
+        import_job = app.signature("org.bccvl.tasks.plone.import_result",
+                                   args=(params, context),
+                                   immutable=True)
+        import_job.link_error(
+            # TODO: allow passing in result/exception of previous job
+            app.signature("org.bccvl.tasks.plone.set_progress",
+                          args=('FAILED', 'Result import failed',
+                                context),
+                          immutable=True))
+        finish_job = app.signature(
+            "org.bccvl.tasks.plone.set_progress",
+            args=('FAILED', 'Task failed {}'.format(repr(e)), context),
+            immutable=True)
+        (start_import | import_job | finish_job).delay()
         raise e
     finally:
         # TODO:  check if dir exists
