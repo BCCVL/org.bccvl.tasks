@@ -143,16 +143,8 @@ class DataMover(object):
         return ret
 
 
-# TODO: these jobs need access to a datamover instance. they way be
-#       long running, current job chaining requires that a move tasks
-#       runs as long as the move job itself takes also the datamover
-#       doesn't support job finished notification
-# TODO: look at using routing keys to utilise multiple data movers
-@app.task(throws=(Exception, ), bind=True)
-def move(self, arglist, context):
-    # TODO: call datamover, wait for result, return state (success, error)
-    app.send_task("org.bccvl.tasks.plone.set_progress",
-                  args=('RUNNING', 'DOWNLOAD', context))
+@app.task()
+def move(arglist, context):
     dm = DataMover()
     states = dm.move(arglist)
     states = dm.wait(states)
@@ -162,9 +154,4 @@ def move(self, arglist, context):
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state.get('id', -1), state['status'], state['reason']))
     if errmsgs:
-        # FIXME: we rely here on failed state, but if this code is
-        #        skipped for some reason, the ui will never see the
-        #        failed state.-> do this in task_chain
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('FAILED', '\n'.join(errmsgs), context))
         raise Exception('One or more move jobs failed')
