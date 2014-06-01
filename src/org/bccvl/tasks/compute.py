@@ -185,6 +185,12 @@ def transfer_inputs(params, context):
                 zipf.extract(ip['zippath'], extractpath)
                 # replace filename with extracted filename
                 ip['filename'] = os.path.join(extractpath, ip['zippath'])
+            elif ip.get('filename', '').endswith('.zip'):
+                # TODO: this comparison is suboptimal
+                # if it's a zip and there is no zippath entry, we unpack the whole zipfile
+                zipf = ZipFile(ip['filename'])
+                extractpath = os.path.dirname(ip['filename'])
+                zipf.extractall(extractpath)
             # if it's not a zip, then there is nothing to do
 
 
