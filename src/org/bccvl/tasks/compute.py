@@ -250,10 +250,16 @@ def get_move_args(file_descr, params, context):
 
 
 def get_public_ip():
+    # FIXME: need a reliable way to find external IP.
+    # * setup /etc/hosts and use getaddrinfo or gethostbyname(_ex)?
+    # * check environment?
+    # * connect to external service
+    # * check external specialised service?  (necessary for NAT scenarios)
     import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('google.com', 80))
-    return s.getsockname()[0]
+    return socket.gethostname()
+    # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # s.connect(('google.com', 80))
+    # return s.getsockname()[0]
 
 
 def decimal_encoder(o):
