@@ -18,15 +18,15 @@ from celery.utils.log import get_task_logger
 LOG = get_task_logger(__name__)
 
 
-@app.task(bind=True)
-def r_task(self, params, context):
+@app.task()
+def r_task(params, context):
     # 1. get R wrapper
     wrapper = resource_string('org.bccvl.tasks', 'r_wrapper.sh')
     # 2. run task
     run_script(wrapper, params, context)
 
 
-@app.task(bind=True)
+@app.task()
 def perl_task(params, context):
     # 1. get perl wrapper
     wrapper = resource_string('org.bccvl.tasks', 'perl_wrapper.sh')
