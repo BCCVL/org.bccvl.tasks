@@ -25,6 +25,9 @@ from zope.component.hooks import setSite
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
 from org.bccvl.site.interfaces import IJobTracker
+import pkg_resources
+import smtplib
+from email.mime.text import MIMEText
 
 
 class AfterCommitTask(Task):
@@ -208,6 +211,15 @@ def import_result(params, context, **kw):
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': params['result']['results_dir'],
                                  'outputmap': params['result']['outputs']})
+    # Send email to notify results are ready
+    fullname = context['user']['fullname']
+    email_addr = context['user']['email']
+    experiment_name = context['experiment']['title']
+    experiment_url = context['experiment']['url']
+    if fullname and email_addr and experiment_name and experiment_url:
+        send_mail(fullname, email_addr, experiment_name, experiment_url)
+    else:
+        LOG.warn("Not sending email. Invalid parameters")
 
 
 # TODO: this task is not allowed to fail
@@ -222,3 +234,17 @@ def set_progress(state, message, context, **kw):
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
+
+
+def send_mail(fullname, user_address, experiment_name, experiment_url):
+    body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
+    body = body.format(fullname=fullname, experiment_name=experiment_name, experiment_url=experiment_url)
+
+    msg = MIMEText(body)
+    msg['Subject'] = "Your BCCVL experiment is complete"
+    msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
+    msg['To'] = user_address
+    
+    server = smtplib.SMTP("localhost")
+    server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
+    server.quit()
