@@ -177,7 +177,7 @@ def zope_task(**task_kw):
 
 
 # TODO: these jobs need to run near a zodb or plone instance
-@zope_task(throws=(Exception, ))
+@zope_task()
 def import_ala(path, lsid, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
     metadata_file = 'ala_dataset.json'
@@ -193,7 +193,7 @@ def import_ala(path, lsid, context, **kw):
 
 # TODO: this may not need a plone instance?
 # TODO: this task is not allowed to fail
-@app.task(throws=(Exception, ))
+@app.task()
 def import_cleanup(path, context, **kw):
     # In case a previous step failed we still have to clean up
     # TODO: may throw exception ... do we care?
@@ -201,7 +201,7 @@ def import_cleanup(path, context, **kw):
     LOG.info("cleanup ala %s to %s", path, context)
 
 
-@zope_task(throws=(Exception, ))
+@zope_task()
 def import_result(params, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
     # transmogrifier context needs to be the parent object, in case
