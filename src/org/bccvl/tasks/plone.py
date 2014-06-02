@@ -93,7 +93,7 @@ def zope_task(**task_kw):
 
                         # assume zope context info is either in kw or last in args
                         ctxt = kw.get('context', args[-1])
-                        userid = ctxt['userid']
+                        userid = ctxt['user']['id']
                         #-> split path components in
                         #   context['context_path'], convert to str and
                         #   traverse each one separately checking the
