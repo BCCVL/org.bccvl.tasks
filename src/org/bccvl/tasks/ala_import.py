@@ -33,8 +33,8 @@ def ala_import(lsid, path, context):
     start_download = plone.set_progress.si('RUNNING', 'Download {0} from ala'.format(lsid), context)
     # 2. do move
     move_job = datamover.move.si([
-        ({'type': 'ala', 'lsid': lsid},
-         {'host': 'plone', 'path': path})],
+        ('ala://ala?lsid=' + lsid,
+         'scp://plone@127.0.0.1' + path)],
         context)
     # we'll have to clean up if move fails'
     move_job.link_error(

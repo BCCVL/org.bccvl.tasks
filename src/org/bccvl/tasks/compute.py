@@ -218,12 +218,8 @@ def transfer_outputs(params, context):
         destpath = os.path.join(params['result']['results_dir'],
                                 fpath)
         move_tasks.append((
-            {'type': 'scp',
-             'host': get_public_ip(),
-             'path': srcpath},
-            {'type': 'scp',
-             'host': 'plone',
-             'path': destpath})
+            'scp://bccvl@' + get_public_ip() + srcpath,
+            'scp://plone@127.0.0.1' + destpath)
         )
     # call move task directly, to run it in process
     datamover.move(move_tasks, context)
@@ -235,14 +231,9 @@ def get_move_args(file_descr, params, context):
     # may be identical for different downloads)
     inputdir = os.path.join(params['env']['inputdir'], file_descr['uuid'])
     os.mkdir(inputdir)
-    src = {
-        'type': 'url',
-        'url': file_descr['internalurl']}
+    src = file_descr['internalurl']
     destfile = os.path.join(inputdir, file_descr['filename'])
-    dest = {
-        'type': 'scp',
-        'host': get_public_ip(),
-        'path': destfile}
+    dest = 'scp://plone@' + get_public_ip() + destfile
     # update params with local filename
     file_descr['filename'] = destfile
     return {'args': (src, dest),
@@ -255,11 +246,12 @@ def get_public_ip():
     # * check environment?
     # * connect to external service
     # * check external specialised service?  (necessary for NAT scenarios)
-    import socket
-    return socket.gethostname()
+    #import socket
+    #return socket.gethostname()
     # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # s.connect(('google.com', 80))
     # return s.getsockname()[0]
+    return '192.168.100.101'
 
 
 def decimal_encoder(o):
