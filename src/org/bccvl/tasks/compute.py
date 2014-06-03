@@ -7,6 +7,7 @@ import subprocess
 import os
 import shutil
 import tempfile
+import socket
 from zipfile import ZipFile
 
 from org.bccvl.tasks.celery import app
@@ -241,17 +242,27 @@ def get_move_args(file_descr, params, context):
 
 
 def get_public_ip():
-    # FIXME: need a reliable way to find external IP.
-    # * setup /etc/hosts and use getaddrinfo or gethostbyname(_ex)?
-    # * check environment?
-    # * connect to external service
-    # * check external specialised service?  (necessary for NAT scenarios)
-    #import socket
-    #return socket.gethostname()
-    # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # s.connect(('google.com', 80))
-    # return s.getsockname()[0]
-    return '192.168.100.101'
+    # check if the environment variable EXT_IP has some useful value
+    ip = os.environ.get('EXT_IP', None)
+    if ip:
+        return ip
+    # otherwise we connect to some host, and check which local ip the socket uses
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('google.com', 80))
+        # TODO: could do name lookup with socket.gethostbyaddr('ip')[0]
+        #       or socket.getnameinfo(s.getsockname())[0]
+        #       namelookup may throw another exception?
+        return s.getsockname()[0]
+    except Exception as e:
+        LOG.warn("couldn't connect to google.com: %s", repr(e))
+    # we still have no clue, let's try it via hostname
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except Exception as e:
+        LOG.warn("couldn't resolve '%s': %s", socket.gethostname(), repr(e))
+    # last chance
+    return socket.getfqdn()
 
 
 def decimal_encoder(o):
