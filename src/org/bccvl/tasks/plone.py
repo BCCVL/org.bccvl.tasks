@@ -201,6 +201,7 @@ def import_cleanup(path, context, **kw):
     LOG.info("cleanup ala %s to %s", path, context)
 
 
+# TODO: maybe do cleanup here? and get rid of above task?
 @zope_task()
 def import_result(params, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
@@ -244,7 +245,7 @@ def send_mail(fullname, user_address, experiment_name, experiment_url):
     msg['Subject'] = "Your BCCVL experiment is complete"
     msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
     msg['To'] = user_address
-    
+
     server = smtplib.SMTP("localhost")
     server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
     server.quit()

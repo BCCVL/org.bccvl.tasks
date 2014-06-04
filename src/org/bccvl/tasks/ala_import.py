@@ -58,7 +58,7 @@ def ala_import(lsid, path, context):
     success_job = plone.set_progress.si(
         'COMPLETED',
         'Import of ala data for {0} finished.'.format(lsid), context)
-    cleanup_job = plone.import_cleanup.si(path, lsid, context)
+    cleanup_job = plone.import_cleanup.si(path, context)
 
     # chain all jobs together
     ala_job = start_download | move_job | start_import | import_job | success_job | cleanup_job
