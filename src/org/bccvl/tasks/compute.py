@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import socket
+import resource
 from zipfile import ZipFile
 
 from org.bccvl.tasks.celery import app
@@ -277,6 +278,10 @@ def writerusage(rusage, params):
              'ru_minflt', 'ru_majflt', 'ru_nswap', 'ru_inblock', 'ru_oublock',
              'ru_msgsnd', 'ru_msgrcv', 'ru_nsignals', 'ru_nvcsw', 'ru_nivcsw')
     procstats = {'rusage': dict(zip(names, rusage))}
+    # correct ru_maxrss which is in pages and we want it in bytes
+    # Note: to get correct pagesize this needs to run on the same
+    #       machine where rusage stats came from
+    procstats['rusage']['ru_maxrss'] *= resource.getpagesize()
     statsfile = open(os.path.join(params['env']['outputdir'],
                                   'pstats.json'),
                      'w')
