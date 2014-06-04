@@ -26,7 +26,8 @@ setup(
     zip_safe=False,
     install_requires=[
         'setuptools',  # distribute
-        'celery'
+        'celery',
+        'backports.ssl_match_hostname',
     ],
     extras_require={
         'bccvl': [

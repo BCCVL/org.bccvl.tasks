@@ -8,6 +8,7 @@ import socket
 import xmlrpclib
 import ssl
 from urlparse import urlsplit
+from backports.ssl_match_hostname import match_hostname, CertificateError
 from org.bccvl.tasks.celery import app
 
 LOG = logging.getLogger('__name__')
@@ -42,6 +43,8 @@ class VerifyingHTTPSConnection(HTTPSConnection):
                                     ca_certs=self.ca_certs,
                                     keyfile=self.key_file,
                                     certfile=self.cert_file)
+        # match hostnome
+        match_hostname(self.sock.getpeercert(), self.host)
 
 
 class SSLSafeTransport(xmlrpclib.SafeTransport):
