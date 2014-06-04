@@ -104,9 +104,12 @@ class DataMover(object):
         # FIXME: make cerfiles configurable
         self.url = os.environ.get('DATA_MOVER',
                                   u'http://127.0.0.1:10700/data_mover')
-        self.ca_certs = '/etc/pki/tls/bccvlca.crt.pem'
-        self.keyfile = '/home/bccvl/worker/worker.key.pem'
-        self.certfile = '/home/bccvl/worker/worker.crt.pem'
+        self.ca_certs = os.environ.get('DATA_MOVER_CA',
+                                       '/etc/pki/tls/certs/bccvlca.crt.pem')
+        self.keyfile = os.environ.get('DATA_MOVER_CERT',
+                                      '/home/bccvl/worker/worker.key.pem')
+        self.certfile = os.environ.get('DATA_MOVER_KEY',
+                                       '/home/bccvl/worker/worker.crt.pem')
 
     @property
     def proxy(self):
