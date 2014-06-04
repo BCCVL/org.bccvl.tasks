@@ -234,7 +234,7 @@ def get_move_args(file_descr, params, context):
     os.mkdir(inputdir)
     src = file_descr['internalurl']
     destfile = os.path.join(inputdir, file_descr['filename'])
-    dest = 'scp://plone@' + get_public_ip() + destfile
+    dest = 'scp://bccvl@' + get_public_ip() + destfile
     # update params with local filename
     file_descr['filename'] = destfile
     return {'args': (src, dest),
