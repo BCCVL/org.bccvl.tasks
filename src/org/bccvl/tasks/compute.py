@@ -15,6 +15,7 @@ from org.bccvl.tasks.celery import app
 
 from org.bccvl.tasks import datamover
 from celery.utils.log import get_task_logger
+from multiprocessing.pool import ThreadPool
 
 
 LOG = get_task_logger(__name__)
@@ -164,9 +165,18 @@ def transfer_inputs(params, context):
                 continue
             move_tasks[ip['uuid']] = get_move_args(ip, params, context)
 
-    # all move_tasks collected; call move task directly (don't send to queue)
-    datamover.move([task['args'] for task in move_tasks.values()],
-                   context)
+    tp = ThreadPool(3)
+    result = tp.map(download_input, move_tasks.items())
+
+    for key in (k for k, success in result if success):
+        # iterate over all successful downloads
+        # and remove from job list for data_mover
+        del move_tasks[key]
+    if move_tasks:
+        # still some jobs left?
+        # all move_tasks collected; call move task directly (don't send to queue)
+        datamover.move([task['args'] for task in move_tasks.values()],
+                       context)
 
     # all data successfully transferred
     # unpack all zip files and update filenames to local files
@@ -298,3 +308,18 @@ def writerusage(rusage, params):
     # average resident set size: idrss/cputime
     # maybe I can get start time from subprocess object?
     # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
+
+
+def download_input(args):
+    from urllib import urlretrieve
+    key, args = args
+    src = args['args'][0]
+    destpath = args['filename']
+    try:
+        filename, info = urlretrieve(src, destpath)
+    except Exception:
+        LOG.info('Download from %s to %s failed - trying data_mover next',
+                 src, destpath)
+        return (key, False)
+    LOG.info('Download from %s to %s succeeded.', src, destpath)
+    return (key, True)
