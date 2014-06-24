@@ -40,7 +40,7 @@ def ala_import(lsid, path, context):
     move_job.link_error(
         # TODO: allow passing in result/exception of previous job
         plone.set_progress.si('FAILED',
-                             'Datamover failed to download {0} from ala'.format(lsid), context))
+                              'Datamover failed to download {0} from ala'.format(lsid), context))
     move_job.link_error(plone.import_cleanup.si(path, context))
 
     # 3. import data
@@ -51,7 +51,7 @@ def ala_import(lsid, path, context):
     import_job.link_error(
         # TODO: allow passing in result/exception of previous job
         plone.set_progress.si('FAILED',
-                             'Import of ala data for {0} failed.'.format(lsid), context))
+                              'Import of ala data for {0} failed.'.format(lsid), context))
     import_job.link_error(plone.import_cleanup.si(path, lsid, context))
 
     # 4. success and cleanup

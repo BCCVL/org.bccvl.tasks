@@ -160,5 +160,10 @@ def move(arglist, context):
         if state['status'] in dm.failed_states:
             errmsgs.append('Move job {0} failed: {1}: {2}'.format(
                 state.get('id', -1), state['status'], state['reason']))
+        elif state['status'] not in dm.success_states:
+            # TODO: something weird happened, either there is an unknown state,
+            #       or something went terribly wrong.
+            LOG.warn("Unknown or incomplete state after data move: [%s] %s: %s",
+                     state.get('id', -1), state['status'], state.get('reason', ''))
     if errmsgs:
-        raise Exception('One or more move jobs failed')
+        raise Exception('One or more move jobs failed', errmsgs)
