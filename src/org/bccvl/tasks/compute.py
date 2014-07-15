@@ -58,6 +58,7 @@ def run_script(wrapper, params, context):
         cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+                                close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         writerusage(rusage, params)
@@ -167,6 +168,8 @@ def transfer_inputs(params, context):
 
     tp = ThreadPool(3)
     result = tp.map(download_input, move_tasks.items())
+    tp.close()
+    tp.join()
 
     for key in (k for k, success in result if success):
         # iterate over all successful downloads
