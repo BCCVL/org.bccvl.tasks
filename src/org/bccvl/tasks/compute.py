@@ -5,11 +5,12 @@ import json
 from decimal import Decimal
 import subprocess
 import os
+import os.path
 import shutil
 import tempfile
 import socket
 import resource
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 from org.bccvl.tasks.celery import app
 
@@ -19,6 +20,30 @@ from multiprocessing.pool import ThreadPool
 
 
 LOG = get_task_logger(__name__)
+
+
+def zip_folder(archive, folder):
+    # We'll keep folder as root in the zip file
+    # and rootdir will be the folder that contains folder
+    archivename = os.path.basename(archive)
+    rootdir = os.path.dirname(folder)
+    rootlen = len(rootdir) + 1
+    with ZipFile(archive, "w", ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(folder):
+            # remove our zip file from files list
+            if archivename in files:
+                if root == os.path.dirname(archive):
+                    files.remove(archivename)
+            for fn in files:
+                absfn = os.path.join(root, fn)
+                zfn = absfn[rootlen:]  # relative path to store in zip
+                print "Add", zfn
+                zipf.write(absfn, zfn)
+            if not files:
+                #NOTE: don't ignore empty directories
+                zif = ZipInfo(root[rootlen:] + "/")
+                print "Add", zif.filename
+                zipf.writestr(zif, "")
 
 
 @app.task()
@@ -55,6 +80,12 @@ def run_script(wrapper, params, context):
         outfile = open(scriptout, 'w')
         wrapsh = os.path.join(params['env']['scriptdir'], 'wrap.sh')
         open(wrapsh, 'w').write(wrapper)
+        # zip up workenv if requested
+        if params['worker'].get('zipworkenv', False):
+            # make sure tmp is big enough
+            # TODO: add toolkit name to zip name ... workenv_bioclim.zip
+            zip_folder(os.path.join(params['env']['outputdir'], 'workenv.zip'),
+                       params['env']['workdir'])
         cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
