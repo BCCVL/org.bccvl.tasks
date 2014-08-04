@@ -41,9 +41,10 @@ def zip_folder(archive, folder):
                 zipf.write(absfn, zfn)
             if not files:
                 #NOTE: don't ignore empty directories
-                zif = ZipInfo(root[rootlen:] + "/")
-                print "Add", zif.filename
-                zipf.writestr(zif, "")
+                absdn = root
+                zdn = root[rootlen:]
+                print "Add", zdn
+                zipf.write(absdn, zdn)
 
 
 @app.task()
