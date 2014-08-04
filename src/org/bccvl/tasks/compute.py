@@ -37,13 +37,11 @@ def zip_folder(archive, folder):
             for fn in files:
                 absfn = os.path.join(root, fn)
                 zfn = absfn[rootlen:]  # relative path to store in zip
-                print "Add", zfn
                 zipf.write(absfn, zfn)
             if not files:
                 #NOTE: don't ignore empty directories
                 absdn = root
                 zdn = root[rootlen:]
-                print "Add", zdn
                 zipf.write(absdn, zdn)
 
 
