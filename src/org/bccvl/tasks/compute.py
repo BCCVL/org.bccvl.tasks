@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import socket
 import resource
-from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from org.bccvl.tasks.celery import app
 
