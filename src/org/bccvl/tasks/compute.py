@@ -62,6 +62,10 @@ def perl_task(params, context):
 
 
 def run_script(wrapper, params, context):
+    # TODO: there are many little things that can fail here, and we
+    #       need to communicate it properly back to the user.
+    # TODO: however, we can't really do anything in case sending
+    #       messages doesn't work.
     try:
         app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=('RUNNING', 'Transferring data', context))
