@@ -129,7 +129,7 @@ def run_script(wrapper, params, context):
         else:
             finish_job = app.signature(
                 "org.bccvl.tasks.plone.set_progress",
-                args=('COMPLETED', 'Task succedded', context),
+                args=('COMPLETED', 'Task succeeded', context),
                 immutable=True)
 
         (start_import | import_job | finish_job).delay()
