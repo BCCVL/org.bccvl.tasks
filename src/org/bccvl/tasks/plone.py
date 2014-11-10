@@ -13,6 +13,8 @@ import os
 import shutil
 from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
+from AccessControl.SecurityManagement import getSecurityManager
+from AccessControl.SecurityManagement import setSecurityManager
 from AccessControl import SpecialUsers
 from Testing.makerequest import makerequest
 from ZODB.POSException import ConflictError
@@ -20,7 +22,7 @@ from ZPublisher.Publish import Retry as RetryException
 import Zope2
 from zope.event import notify
 from zope.app.publication.interfaces import BeforeTraverseEvent
-from zope.component.hooks import setSite
+from zope.component.hooks import setSite, getSite
 # TODO: decide which one to use
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
@@ -87,6 +89,8 @@ def zope_task(**task_kw):
                 os.environ['ZOPE_CONFIG'] = 'parts/instance/etc/zope.conf'
             zapp = makerequest(Zope2.app())
 
+            oldsm = getSecurityManager()
+            oldsite = getSite()
             try:
                 zodb_retries = 3
                 retryable = (ConflictError, RetryException)
@@ -159,8 +163,10 @@ def zope_task(**task_kw):
                         # TODO: preserve stack trace somehow
                         raise
             finally:
-                noSecurityManager()
-                setSite(None)
+                # noSecurityManager()
+                # setSite(None)
+                setSecurityManager(oldsm)
+                setSite(oldsite)
                 zapp._p_jar.close()
 
             return result
