@@ -137,6 +137,16 @@ def run_script(wrapper, params, context):
     except Exception as e:
         # TODO: capture stacktrace
         # need to start import to get import cleaned up
+
+        # What to do here? write error log with stacktrace?, job id?
+        #:( exposes internals, ugly hash, complicated with admin only access
+        #-> certainly need to get rid of exception in message.
+        # test exceptions:
+        #  ... upload file, replace with something else (unzip error)
+        #  ... delete file and rerun experiment (donwload error)
+        #  ... create file/folder error? (can't write log)
+        #  ... how to simulate fault? (download error)
+
         start_import = app.signature(
             "org.bccvl.tasks.plone.set_progress",
             args=('RUNNING', 'Import results', context),
