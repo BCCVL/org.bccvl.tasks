@@ -122,7 +122,8 @@ def zope_task(**task_kw):
                         uf = getattr(site, 'acl_users', None)
                         user = None
                         while uf is not None:
-                            user = uf.getUserById(userid)
+                            # FIXME: should this be user id or user name?
+                            user = uf.getUser(name=userid)
                             if user is not None:
                                 break
                             parent = uf.__parent__.__parent__
