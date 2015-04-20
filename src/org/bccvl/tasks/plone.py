@@ -235,13 +235,13 @@ def import_result(params, context, **kw):
 def set_progress(state, message, context, **kw):
     jt = IJobTracker(kw['_context'])
     jt.set_progress(state, message)
-    kw['_context'].reindexObject()
     if state in ('COMPLETED', 'FAILED'):
         jt.state = state
         LOG.info("Plone: Update job state %s", state)
     else:
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
+    kw['_context'].reindexObject()
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
 
 
