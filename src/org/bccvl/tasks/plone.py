@@ -241,7 +241,7 @@ def set_progress(state, message, context, **kw):
     else:
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
-    kw['_context'].reindexObject()
+    kw['_context'].reindexObject() # TODO: reindex job state only?
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
 
 
