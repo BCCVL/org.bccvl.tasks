@@ -52,7 +52,7 @@ def ala_import(lsid, path, context):
         # TODO: allow passing in result/exception of previous job
         plone.set_progress.si('FAILED',
                               'Import of ala data for {0} failed.'.format(lsid), context))
-    import_job.link_error(plone.import_cleanup.si(path, lsid, context))
+    import_job.link_error(plone.import_cleanup.si(path, context))
 
     # 4. success and cleanup
     success_job = plone.set_progress.si(
