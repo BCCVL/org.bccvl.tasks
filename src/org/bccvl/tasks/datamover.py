@@ -167,3 +167,20 @@ def move(arglist, context):
                      state.get('id', -1), state['status'], state.get('reason', ''))
     if errmsgs:
         raise Exception('One or more move jobs failed', errmsgs)
+
+
+@app.task()
+def export_result(zipurl, serviceid, context):
+    # TODO: make sure to clean all temporary up
+
+    # 1. download zip file from zip url
+
+    # 2. fetch oauth token 
+
+    # 3. fetch oauth config for serviceid ?
+
+    # 4. upload to service
+
+    # 5. raise on error, or nothing
+    
+    pass
