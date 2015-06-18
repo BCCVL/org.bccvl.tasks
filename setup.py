@@ -27,6 +27,8 @@ setup(
     install_requires=[
         'setuptools',  # distribute
         'celery',
+        'requests',
+        'requests-oauthlib',
         'backports.ssl_match_hostname',
     ],
     extras_require={

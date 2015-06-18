@@ -172,28 +172,12 @@ def move(arglist, context):
 
 @app.task()
 def export_result(zipurl, serviceid, context):
-    with open('/tmp/test_file','w') as f:
-        f.write('test')
-        
-    # x = {}
-    # x['zipurl'] = zipurl
-    # x['serviceid'] = serviceid
-    # x['context'] = context
-    # from pickle import dump
-
-    # with open('/tmp/job_data.pickle','w') as f:
-    #     dump(x,f)
-
-    # TODO: make sure to clean all temporary up
-
-    # 1. download zip file from zip url
-
-    # 2. fetch oauth token 
-
-    # 3. fetch oauth config for serviceid ?
-
-    # 4. upload to service
-
-    # 5. raise on error, or nothing
+    zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
+    export_func = getattr(export_services, "export_{}".format(serviceid), export_services.unsupported_service)
+    try:
+        export_func(zipurl, serviceid, context)
+    except Exception as e:
+        LOG.error(str(e))
+        raise e
     
 
