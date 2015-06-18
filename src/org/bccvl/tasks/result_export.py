@@ -32,6 +32,6 @@ def result_export(zipurl, serviceid, context):
         'Export {0} finished.'.format(zipurl), context)
 
     # chain all jobs together
-    export_job = start_job | export_job | success_job
+    # export_job = start_job | export_job | success_job
 
     return export_job
