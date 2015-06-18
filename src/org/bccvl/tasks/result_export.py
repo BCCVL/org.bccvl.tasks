@@ -12,7 +12,7 @@ def result_export(zipurl, serviceid, context):
 
     # 1. set progress info
     # TODO: can this one fail as well?
-    start_job = plone.set_progress.si('RUNNING', 'Download {0} from ala'.format(zipurl), context)
+    start_job = plone.set_progress.si('RUNNING', 'Export {0}:'.format(zipurl), context)
     # 2. do export
 
     export_job = datamover.export_result.si(zipurl, serviceid, context)
@@ -21,7 +21,7 @@ def result_export(zipurl, serviceid, context):
     export_job.link_error(
         # TODO: allow passing in result/exception of previous job
         plone.set_progress.si('FAILED',
-                              'Datamover failed to download {0} from ala'.format(zipurl), context))
+                              'Datamover failed to download {0}'.format(zipurl), context))
 
     # TODO: some sort of user notification....
     #       ... email, link on webpage,
@@ -29,7 +29,7 @@ def result_export(zipurl, serviceid, context):
     # 4. success and cleanup
     success_job = plone.set_progress.si(
         'COMPLETED',
-        'Import of ala data for {0} finished.'.format(zipurl), context)
+        'Export {0} finished.'.format(zipurl), context)
 
     # chain all jobs together
     export_job = start_job | export_job | success_job
