@@ -10,6 +10,7 @@ import ssl
 from urlparse import urlsplit
 from backports.ssl_match_hostname import match_hostname, CertificateError
 from org.bccvl.tasks.celery import app
+from org.bccvl.tasks import export_services
 
 LOG = logging.getLogger('__name__')
 
@@ -171,6 +172,18 @@ def move(arglist, context):
 
 @app.task()
 def export_result(zipurl, serviceid, context):
+    with open('/tmp/test_file','w') as f:
+        f.write('test')
+        
+    # x = {}
+    # x['zipurl'] = zipurl
+    # x['serviceid'] = serviceid
+    # x['context'] = context
+    # from pickle import dump
+
+    # with open('/tmp/job_data.pickle','w') as f:
+    #     dump(x,f)
+
     # TODO: make sure to clean all temporary up
 
     # 1. download zip file from zip url
@@ -183,4 +196,4 @@ def export_result(zipurl, serviceid, context):
 
     # 5. raise on error, or nothing
     
-    pass
+
