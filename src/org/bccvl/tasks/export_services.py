@@ -18,8 +18,8 @@ def _get_zip(url):
 
 def _get_tokens(serviceid, user):
     tokens = {}
-    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/figshare/accesstoken?user={}".format(user)).json() )
-    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/figshare/clienttoken".format(user)).json() )
+    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/accesstoken?user={1}".format(serviceid, user)).json() )
+    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/clienttoken".format(user)).json() )
     return tokens
 
 def _get_metadata(zf):
