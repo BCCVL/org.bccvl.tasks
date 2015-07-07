@@ -174,10 +174,11 @@ def move(arglist, context):
 def export_result(zipurl, serviceid, context):
     zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
     export_func = getattr(export_services, "export_{}".format(serviceid), export_services.unsupported_service)
-    try:
-        export_func(zipurl, serviceid, context)
-    except Exception as e:
-        LOG.error(str(e))
-        raise e
+    export_func(zipurl, serviceid, context)
+    # try:
+    #     export_func(zipurl, serviceid, context)
+    # except Exception as e:
+    #     LOG.error(str(e))
+    #     raise e
     
 

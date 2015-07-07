@@ -5,8 +5,42 @@ import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
 from os.path import split
+import smtplib
+from email.mime.text import MIMEText
+import logging
+
+LOG = logging.getLogger('__name__')
+
+
+TMPL_EMAIL_SUCCESS = """Hello {fullname},
+
+Your dataset '{dataset_name}' has been successfully uploaded to {service_name}.
+
+{message}
+
+Kind regards,
+The BCCVL
+"""
+
+TMPL_EMAIL_FAILURE = """Hello {fullname},
+
+An error occured while uploading your dataset {dataset_name} to {service_name}.
+
+Please find below the error message returned by the service. If the problem persists, please contact the BCCVL support team.
+
+------------
+{message}
+------------
+
+Kind regards,
+The BCCVL
+"""
 
 def _get_zip(url):
+    """
+    Download experiment zip file, into a tempfile with autodelete, open as ZipFile and
+    return ZipFile object.  
+    """
     r = requests.get(url, stream=True)
     f = tempfile.NamedTemporaryFile(prefix="bccvl_export", dir="/tmp", delete=True)    
     for chunk in r.iter_content(chunk_size=1024): 
@@ -17,12 +51,26 @@ def _get_zip(url):
     return zipfile.ZipFile(f, 'r')
 
 def _get_tokens(serviceid, user):
+    """
+    Acquire user and service related OAUTH tokens from the BCCVL
+    """
     tokens = {}
-    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/accesstoken?user={1}".format(serviceid, user)).json() )
-    tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/clienttoken".format(user)).json() )
+    try:
+        tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/accesstoken?user={1}".format(serviceid, user)).json() )
+    except Exception as e:
+        LOG.error('Error getting access token: {0}'.format(str(e)))
+        raise e
+    try:
+        tokens.update( requests.get("http://127.0.0.1:8201/bccvl/oauth/{0}/clienttoken".format(serviceid)).json() )
+    except Exception as e:
+        LOG.error('Error getting client token: {0}'.format(str(e)))        
+        raise e
     return tokens
 
 def _get_metadata(zf):
+    """
+    Extract title and description from the METS xml file. 
+    """
     try:
         fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
     except Exception as e:
@@ -33,9 +81,40 @@ def _get_metadata(zf):
     return {'title':title, 'description':abstract}
 
 def _get_datafiles(zf):
-    return filter( lambda x: x.split('/')[1] == 'data', zf.namelist() )
+    """
+    return the full path within the zip file of all files that are in the data subfolder.
+    """
+    return filter( lambda x: x.split('/')[1] == 'data' and len(x.split('/')[-1]), zf.namelist() )
+
+def _send_mail(context, serviceid, dataset_name, body_message, success=True):
+    """
+    Send email about success / failure to user.
+    """
+    fullname = context['user']['fullname'] if len(context['user']['fullname']) else context['user']['id']
+    user_address = context['user']['email']
+    if not len(user_address) > 0:
+        return
+    if success:
+        TMPL = TMPL_EMAIL_SUCCESS   
+        body = TMPL.format(fullname=fullname, dataset_name=dataset_name, message=body_message.strip(), service_name=serviceid.title())
+        msg = MIMEText(body)        
+        msg['Subject'] = "Your upload to {0} is complete".format(serviceid.title())        
+    else:
+        TMPL = TMPL_EMAIL_FAILURE        
+        body = TMPL.format(fullname=fullname, dataset_name=dataset_name, message=body_message.strip(), service_name=serviceid.title())
+        msg = MIMEText(body)         
+        msg['Subject'] = "Your upload to {0} failed".format(serviceid.title())
+    msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
+    msg['To'] = user_address
+
+    server = smtplib.SMTP("localhost")
+    server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
+    server.quit()
 
 def export_figshare(zipurl, serviceid, context):
+    """
+    Export dataset to figshare via the figshare rest api (oauth1)
+    """
     oauth_tokens = _get_tokens(serviceid, context['user']['id'])
     oauth_tokens['resource_owner_key'] = oauth_tokens.get('oauth_token')
     oauth_tokens['resource_owner_secret'] = oauth_tokens.get('oauth_token_secret')
@@ -54,24 +133,71 @@ def export_figshare(zipurl, serviceid, context):
     body = metadata
     headers = {'content-type':'application/json'}
     response = client.post('http://api.figshare.com/v1/my_data/articles', auth=oauth, data=json.dumps(body), headers=headers)
-    article_metadata = json.loads(response.content)
-
+    try:
+        article_metadata = json.loads(response.content)
+        if response.status_code != 200:
+            raise Exception ("http status code {0}".format(response.status_code))
+    except Exception as e:
+        msg = "Error creating article: {0} - response: {1}".format(str(e), str(response.content))
+        LOG.error(msg)
+        _send_mail(context, serviceid, metadata['title'], msg, success=False)
+        raise e
+        
     # add files
     data_files = _get_datafiles(zf)
     # upload one by one to avoid making one enourmous request
     for data_file in data_files:
         files = {'filedata':(split(data_file)[-1], zf.open(data_file,'r'))}
-        response = client.put('http://api.figshare.com/v1/my_data/articles/{0}/files'.format(article_metadata['article_id']), auth=oauth, files=files)
+        response = client.put('http://api.figshare.com/v1/my_data/articles/{0}/files'.format(article_metadata['article_id']), auth=oauth, files=files, timeout=900)
         file_results = json.loads(response.content)
+        try:
+            file_results = json.loads(response.content)
+            if response.status_code != 200:
+                raise Exception ("http status code {0}".format(response.status_code))            
+        except Exception as e:
+            msg = "Error uploading file '{0}': {1} - response: {2}".format(split(data_file)[-1], str(e), str(response.content))
+            LOG.error(msg)
+            _send_mail(context, serviceid, metadata['title'], msg, success=False)
+            raise e
 
     # add link to the BCCVL
     bccvl_link = {'link':'http://www.bccvl.org.au'}
     response = client.put('http://api.figshare.com/v1/my_data/articles/{0}/links'.format(article_metadata['article_id']), auth=oauth, data=json.dumps(bccvl_link), headers=headers)
-    link_results = json.loads(response.content)
+    try:
+        link_results = json.loads(response.content)
+    except Exception as e:
+        # We can do without the link, so we'll just log this error but not fail the entire upload.
+        LOG.error("Error adding link: {0} - response: {1}".format(str(e), str(response.content)))
 
-    ## get article info
-    # response = client.get('http://api.figshare.com/v1/my_data/articles/{0}'.format(article_metadata['article_id']), auth=oauth)
-    # article_info = json.loads(response.content)
+    # get article info
+    response = client.get('http://api.figshare.com/v1/my_data/articles/{0}'.format(article_metadata['article_id']), auth=oauth)
+    try:
+        article_info = json.loads(response.content)
+        if response.status_code != 200:
+            raise Exception ("http status code {0}".format(response.status_code))             
+    except Exception as e:
+        msg = "Error getting article info: {0} - response: {1}".format(str(e), str(response.content))
+        LOG.error(msg)
+        _send_mail(context, serviceid, metadata['title'], msg, success=False)
+        raise e        
+
+    try:
+        article_info['items'][0]['preview_url'] = "http://figshare.com/preview/_preview/{0}".format(article_info['items'][0]['article_id'])
+        msg = []
+        for key in ['article_id','title', 'status', 'published_date', 'preview_url', 'total_size']:
+            msg.append("{0}: {1}".format(key.title().replace("_"," "), article_info['items'][0][key]))
+
+        msg += ['','Files:']
+        for file_item in article_info['items'][0]['files']:
+            for key in ['name','mime_type','size']:
+                msg.append("{0}: {1}".format(key.title().replace("_"," "), file_item[key]))
+            msg.append("")
+
+        _send_mail(context, serviceid, metadata['title'], "\n".join(msg), success=True)
+    except Exception as e:
+        LOG.error("Error notifying user: {0}".format(str(e)))
+        raise e
+
 
 
 def export_dropbox(zipurl, serviceid, context):
