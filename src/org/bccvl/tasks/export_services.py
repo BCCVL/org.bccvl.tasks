@@ -84,7 +84,7 @@ def _get_datafiles(zf):
     """
     return the full path within the zip file of all files that are in the data subfolder.
     """
-    return filter( lambda x: x.split('/')[1] == 'data' and len(x.split('/')[-1]), zf.namelist() )
+    return filter( lambda x: (x.split('/')[1] == 'data' and len(x.split('/')[-1])) or x.endswith('prov.ttl'), zf.namelist() ) + filter( lambda x: , zf.namelist() )
 
 def _send_mail(context, serviceid, dataset_name, body_message, success=True):
     """
