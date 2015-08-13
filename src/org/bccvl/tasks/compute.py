@@ -21,7 +21,20 @@ from multiprocessing.pool import ThreadPool
 
 LOG = get_task_logger(__name__)
 
-
+def set_progress(state, statusmsg, context):
+    app.send_task("org.bccvl.tasks.plone.set_progress",
+                      args=(state, statusmsg, context))
+    
+def set_progress_job(state, statusmsg, context):
+    return app.signature("org.bccvl.tasks.plone.set_progress", 
+                         args=(state, statusmsg, context),
+                         immutable=True)
+                         
+def import_result_job(params, context):
+    return app.signature("org.bccvl.tasks.plone.import_result",
+                         args=(params, context),
+                         immutable=True)
+                
 def zip_folder(archive, folder):
     # We'll keep folder as root in the zip file
     # and rootdir will be the folder that contains folder
@@ -67,17 +80,20 @@ def run_script(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Transferring data', context))
+        errmsg = 'Fail to transfer/import data'
+        set_progress('RUNNING', 'Transferring data', context)
+
         # create initial folder structure
         create_workenv(params)
         # transfer input files
         transfer_inputs(params, context)
         # create script
         scriptname = create_scripts(params, context)
+        
         # run the script
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Executing job', context))
+        errmsg = 'Fail to run experiement'
+        set_progress('RUNNING', 'Executing job', context)
+        
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
         outfile = open(scriptout, 'w')
@@ -99,38 +115,22 @@ def run_script(wrapper, params, context):
         # TODO: check whether ret and proc.returncode are the same
 
         # move results back
-        app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=('RUNNING', 'Transferring outputs', context))
+        errmsg = 'Fail to transfer results back'
+        set_progress('RUNNING', 'Transferring outputs', context)
         transfer_outputs(params, context)
 
         # we are done here, hand over to result importer
         # build a chain of the remaining tasks
-        start_import = app.signature(
-            "org.bccvl.tasks.plone.set_progress",
-            args=('RUNNING', 'Import results', context),
-            immutable=True)
+        start_import = set_progress_job('RUNNING', 'Import results', context)
 
-        import_job = app.signature("org.bccvl.tasks.plone.import_result",
-                                   args=(params, context),
-                                   immutable=True)
-        import_job.link_error(
-            # TODO: allow passing in result/exception of previous job
-            app.signature("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', 'Result import failed',
-                                context),
-                          immutable=True))
+        import_job = import_result_job(params, context)
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
 
         if ret != 0:
             errmsg = 'Script execution faild with exit code {0}'.format(ret)
-            finish_job = app.signature(
-                "org.bccvl.tasks.plone.set_progress",
-                args=('FAILED', errmsg, context),
-                immutable=True)
+            finish_job = set_progress_job('FAILED', errmsg, context)
         else:
-            finish_job = app.signature(
-                "org.bccvl.tasks.plone.set_progress",
-                args=('COMPLETED', 'Task succeeded', context),
-                immutable=True)
+            finish_job = set_progress_job('COMPLETED', 'Task succeeded', context)
 
         (start_import | import_job | finish_job).delay()
 
@@ -138,7 +138,7 @@ def run_script(wrapper, params, context):
         # TODO: capture stacktrace
         # need to start import to get import cleaned up
 
-        # What to do here? write error log with stacktrace?, job id?
+        # Log error message with stacktrace.
         #:( exposes internals, ugly hash, complicated with admin only access
         #-> certainly need to get rid of exception in message.
         # test exceptions:
@@ -147,24 +147,16 @@ def run_script(wrapper, params, context):
         #  ... create file/folder error? (can't write log)
         #  ... how to simulate fault? (download error)
 
-        start_import = app.signature(
-            "org.bccvl.tasks.plone.set_progress",
-            args=('RUNNING', 'Import results', context),
-            immutable=True)
+        # log error message with exception and traceback
+        LOG.exception(errmsg)
+        
+        start_import = set_progress_job('RUNNING', 'Import results', context)
 
-        import_job = app.signature("org.bccvl.tasks.plone.import_result",
-                                   args=(params, context),
-                                   immutable=True)
-        import_job.link_error(
-            # TODO: allow passing in result/exception of previous job
-            app.signature("org.bccvl.tasks.plone.set_progress",
-                          args=('FAILED', 'Result import failed',
-                                context),
-                          immutable=True))
-        finish_job = app.signature(
-            "org.bccvl.tasks.plone.set_progress",
-            args=('FAILED', 'Task failed {}'.format(repr(e)), context),
-            immutable=True)
+        import_job = import_result_job(params, context)
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+
+        finish_job = set_progress_job('FAILED', errmsg, context)
+
         (start_import | import_job | finish_job).delay()
         raise e
     finally:
