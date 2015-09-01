@@ -229,6 +229,12 @@ def import_result(params, context, **kw):
     else:
         LOG.warn("Not sending email. Invalid parameters")
 
+    # compute the experiement run time if all its jobs are completed
+    # The experiment is the parent job
+    jt = IJobTracker(kw['_context'].__parent__)
+    if jt.state in ('COMPLETED', 'FAILED'):
+        exp = jt.context
+        exp.runtime = (datetime.now() - exp.created).total_seconds()
 
 # TODO: this task is not allowed to fail
 @zope_task()
