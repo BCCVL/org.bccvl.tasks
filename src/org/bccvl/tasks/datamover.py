@@ -172,6 +172,8 @@ def move(arglist, context):
 
 @app.task()
 def export_result(zipurl, serviceid, context):
+    # FIXME: why do we pass in zipurl?
+    #        mmm.... crappy hack with no auth support
     zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
     export_func = getattr(export_services, "export_{}".format(serviceid), export_services.unsupported_service)
     export_func(zipurl, serviceid, context)
@@ -180,5 +182,3 @@ def export_result(zipurl, serviceid, context):
     # except Exception as e:
     #     LOG.error(str(e))
     #     raise e
-    
-
