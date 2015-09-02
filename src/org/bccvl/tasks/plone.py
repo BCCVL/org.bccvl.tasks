@@ -11,6 +11,7 @@ import transaction
 import sys
 import os
 import shutil
+import time
 from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import getSecurityManager
@@ -229,13 +230,7 @@ def import_result(params, context, **kw):
     else:
         LOG.warn("Not sending email. Invalid parameters")
 
-    # compute the experiement run time if all its jobs are completed
-    # The experiment is the parent job
-    jt = IJobTracker(kw['_context'].__parent__)
-    if jt.state in ('COMPLETED', 'FAILED'):
-        exp = jt.context
-        exp.runtime = (datetime.now() - exp.created).total_seconds()
-
+    
 # TODO: this task is not allowed to fail
 @zope_task()
 def set_progress(state, message, context, **kw):
@@ -249,7 +244,13 @@ def set_progress(state, message, context, **kw):
         LOG.info("Plone: Update job state RUNNING")
     kw['_context'].reindexObject() # TODO: reindex job state only?
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
-
+    
+# compute the experiement run time if all its jobs are completed
+    # The experiment is the parent job
+    jt = IJobTracker(kw['_context'].__parent__)
+    if jt.state in ('COMPLETED', 'FAILED'):
+        exp = jt.context
+        exp.runtime = time.time() - (exp.created().millis()/1000.0)
 
 def send_mail(fullname, user_address, experiment_name, experiment_url):
     body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
