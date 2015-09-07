@@ -7,7 +7,7 @@ from org.bccvl.tasks import plone
 
 # ALA import is a chain of tasks
 # 1. start download
-# 2. initate import
+# 2. initiate import
 
 # TODO:  this is a very short lived task and can basically run anywhere
 #        maybe put in default queue?
