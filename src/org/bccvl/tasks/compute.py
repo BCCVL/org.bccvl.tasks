@@ -21,20 +21,30 @@ from multiprocessing.pool import ThreadPool
 
 LOG = get_task_logger(__name__)
 
+
 def set_progress(state, statusmsg, context):
     app.send_task("org.bccvl.tasks.plone.set_progress",
                       args=(state, statusmsg, context))
-    
+
+
 def set_progress_job(state, statusmsg, context):
-    return app.signature("org.bccvl.tasks.plone.set_progress", 
+    return app.signature("org.bccvl.tasks.plone.set_progress",
                          args=(state, statusmsg, context),
                          immutable=True)
-                         
+
+
 def import_result_job(params, context):
     return app.signature("org.bccvl.tasks.plone.import_result",
                          args=(params, context),
                          immutable=True)
-                
+
+
+def import_cleanup_job(params, context):
+    return app.signature("org.bccvl.tasks.plone.import_cleanup",
+                         args=(params['result']['results_dir'], context),
+                         immutable=True)
+
+
 def zip_folder(archive, folder):
     # We'll keep folder as root in the zip file
     # and rootdir will be the folder that contains folder
@@ -89,11 +99,11 @@ def run_script(wrapper, params, context):
         transfer_inputs(params, context)
         # create script
         scriptname = create_scripts(params, context)
-        
+
         # run the script
         errmsg = 'Fail to run experiement'
         set_progress('RUNNING', 'Executing job', context)
-        
+
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
         outfile = open(scriptout, 'w')
@@ -123,8 +133,11 @@ def run_script(wrapper, params, context):
         # build a chain of the remaining tasks
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
+        cleanup_job = import_cleanup_job(params, context)
+
         import_job = import_result_job(params, context)
         import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+        import_job.link_error(cleanup_job)
 
         if ret != 0:
             errmsg = 'Script execution faild with exit code {0}'.format(ret)
@@ -132,7 +145,7 @@ def run_script(wrapper, params, context):
         else:
             finish_job = set_progress_job('COMPLETED', 'Task succeeded', context)
 
-        (start_import | import_job | finish_job).delay()
+        (start_import | import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
         # TODO: capture stacktrace
@@ -149,7 +162,7 @@ def run_script(wrapper, params, context):
 
         # log error message with exception and traceback
         LOG.exception(errmsg)
-        
+
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
         import_job = import_result_job(params, context)
@@ -270,7 +283,7 @@ def transfer_outputs(params, context):
                                 fpath)
         move_tasks.append((
             'scp://bccvl@' + get_public_ip() + srcpath,
-            'scp://plone@127.0.0.1' + destpath)
+            destpath)
         )
     # add job script to outputs
     srcpah = os.path.join(params['env']['scriptdir'],
@@ -279,7 +292,7 @@ def transfer_outputs(params, context):
                             params['worker']['script']['name'])
     move_tasks.append((
         'scp://bccvl@' + get_public_ip() + srcpath,
-        'scp://plone@127.0.0.1' + destpath)
+        destpath)
     )
     # call move task directly, to run it in process
     datamover.move(move_tasks, context)
