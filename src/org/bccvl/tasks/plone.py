@@ -11,6 +11,7 @@ import transaction
 import sys
 import os
 import shutil
+from urlparse import urlparse
 from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import getSecurityManager
@@ -203,7 +204,9 @@ def import_ala(path, lsid, context, **kw):
 @app.task()
 def import_cleanup(path, context, **kw):
     # In case a previous step failed we still have to clean up
-    # TODO: may throw exception ... do we care?
+    # FIXME: may throw exception ...
+    #        just catch all exceptions ... log an error and continue as if nothing happened
+    path = urlparse(path).path
     shutil.rmtree(path)
     LOG.info("cleanup ala %s to %s", path, context)
 
@@ -214,10 +217,11 @@ def import_result(params, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    LOG.info("import results %s to %s", params['result']['results_dir'], context)
+    results_folder = urlparse(params['result']['results_dir']).path
+    LOG.info("import results %s to %s", results_folder, context)
     transmogrifier = Transmogrifier(kw['_context'])
     transmogrifier(u'org.bccvl.compute.resultimport',
-                   resultsource={'path': params['result']['results_dir'],
+                   resultsource={'path': results_folder,
                                  'outputmap': params['result']['outputs']})
     # Send email to notify results are ready
     fullname = context['user']['fullname']
