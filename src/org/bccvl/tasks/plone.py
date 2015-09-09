@@ -183,7 +183,6 @@ def zope_task(**task_kw):
             return app.task(**task_kw)(new_func)
     return wrap
 
-
 # TODO: these jobs need to run near a zodb or plone instance
 @zope_task()
 def import_ala(path, lsid, context, **kw):
@@ -220,13 +219,17 @@ def import_result(params, context, **kw):
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': params['result']['results_dir'],
                                  'outputmap': params['result']['outputs']})
+                                 
+    jt = IJobTracker(kw['_context'])
+                                     
     # Send email to notify results are ready
     fullname = context['user']['fullname']
     email_addr = context['user']['email']
     experiment_name = context['experiment']['title']
     experiment_url = context['experiment']['url']
+    success = (jt.state == 'COMPLETED')
     if fullname and email_addr and experiment_name and experiment_url:
-        send_mail(fullname, email_addr, experiment_name, experiment_url)
+        send_mail(fullname, email_addr, experiment_name, experiment_url, success)
     else:
         LOG.warn("Not sending email. Invalid parameters")
 
@@ -252,9 +255,13 @@ def set_progress(state, message, context, **kw):
         exp = jt.context
         exp.runtime = time.time() - (exp.created().millis()/1000.0)
 
-def send_mail(fullname, user_address, experiment_name, experiment_url):
+def send_mail(fullname, user_address, experiment_name, experiment_url, success):
+    if success:
+        job_status = 'completed'
+    else:
+        job_status = 'failed'
     body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
-    body = body.format(fullname=fullname, experiment_name=experiment_name, experiment_url=experiment_url)
+    body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
 
     msg = MIMEText(body)
     msg['Subject'] = "Your BCCVL experiment is complete"
