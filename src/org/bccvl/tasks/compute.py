@@ -286,7 +286,7 @@ def transfer_outputs(params, context):
             destpath)
         )
     # add job script to outputs
-    srcpah = os.path.join(params['env']['scriptdir'],
+    srcpath = os.path.join(params['env']['scriptdir'],
                           params['worker']['script']['name'])
     destpath = os.path.join(params['result']['results_dir'],
                             params['worker']['script']['name'])

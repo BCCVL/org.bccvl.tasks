@@ -1,5 +1,5 @@
 Hi {fullname},
 
-Your experiment '{experiment_name}' has completed, and results are ready for you to view here:
+Your result in experiment '{experiment_name}' has {job_status}, and results are ready for you to view here:
 {experiment_url}
 
