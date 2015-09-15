@@ -32,6 +32,7 @@ from org.bccvl.site.interfaces import IJobTracker
 import pkg_resources
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 class AfterCommitTask(Task):
@@ -273,12 +274,12 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
     htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
   
     msg = MIMEMultipart('alternative')
-    msg['Subject'] = "Your BCCVL experiment is complete"
+    msg['Subject'] = "Your BCCVL experiment is %s" %job_status
     msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
     msg['To'] = user_address
     
-    msg.attach(body, 'plain')
-    msg.attach(htmlbody, 'html')
+    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(htmlbody, 'html'))
 
     server = smtplib.SMTP("localhost")
     server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
