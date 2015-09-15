@@ -263,10 +263,16 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
     body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
     body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
 
-    msg = MIMEText(body)
+    htmlbody = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.html")
+    htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
+  
+    msg = MIMEMultipart('alternative')
     msg['Subject'] = "Your BCCVL experiment is complete"
     msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
     msg['To'] = user_address
+    
+    msg.attach(body, 'plain')
+    msg.attach(htmlbody, 'html')
 
     server = smtplib.SMTP("localhost")
     server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())

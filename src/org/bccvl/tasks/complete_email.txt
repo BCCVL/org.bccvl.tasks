@@ -3,3 +3,5 @@ Hi {fullname},
 Your result in experiment '{experiment_name}' has {job_status}, and results are ready for you to view here:
 {experiment_url}
 
+The BCCVL is currently released in BETA stage, which means we are still hard at work adding features and improving the overall performance of the lab. Take our super quick survey to provide your feedback.
+Tell us what you think: https://prodsurvey.rcs.griffith.edu.au/prodls190/index.php?sid=87736&amp;lang=en
