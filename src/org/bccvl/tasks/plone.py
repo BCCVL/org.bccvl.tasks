@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from plone import api
 
 from org.bccvl.tasks.celery import app
 import logging
@@ -30,8 +31,8 @@ from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
 from org.bccvl.site.interfaces import IJobTracker
 import pkg_resources
-import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 class AfterCommitTask(Task):
@@ -227,16 +228,7 @@ def import_result(params, context, **kw):
                                  
     jt = IJobTracker(kw['_context'])
                                      
-    # Send email to notify results are ready
-    fullname = context['user']['fullname']
-    email_addr = context['user']['email']
-    experiment_name = context['experiment']['title']
-    experiment_url = context['experiment']['url']
-    success = (jt.state == 'COMPLETED')
-    if fullname and email_addr and experiment_name and experiment_url:
-        send_mail(fullname, email_addr, experiment_name, experiment_url, success)
-    else:
-        LOG.warn("Not sending email. Invalid parameters")
+    
 
 
 # TODO: this task is not allowed to fail
@@ -247,6 +239,17 @@ def set_progress(state, message, context, **kw):
     if state in ('COMPLETED', 'FAILED'):
         jt.state = state
         LOG.info("Plone: Update job state %s", state)
+
+        # Send email to notify results are ready
+        fullname = context['user']['fullname']
+        email_addr = context['user']['email']
+        experiment_name = context['experiment']['title']
+        experiment_url = context['experiment']['url']
+        success = (jt.state == 'COMPLETED')
+        if fullname and email_addr and experiment_name and experiment_url:
+            send_mail(fullname, email_addr, experiment_name, experiment_url, success)
+        else:
+            LOG.warn("Not sending email. Invalid parameters")
     else:
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
@@ -266,14 +269,16 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
         job_status = 'completed'
     else:
         job_status = 'failed'
+
+    subject = "Your BCCVL experiment is %s" %job_status
     body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
     body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
 
-    msg = MIMEText(body)
-    msg['Subject'] = "Your BCCVL experiment is complete"
-    msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
-    msg['To'] = user_address
+    htmlbody = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.html")
+    htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
+  
+    msg = MIMEMultipart('alternative')    
+    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(htmlbody, 'html'))
 
-    server = smtplib.SMTP("localhost")
-    server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
-    server.quit()
+    api.portal.send_email(recipient=user_address, subject=subject, body=msg.as_string())
