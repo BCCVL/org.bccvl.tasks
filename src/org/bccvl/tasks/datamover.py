@@ -10,7 +10,6 @@ import ssl
 from urlparse import urlsplit
 from backports.ssl_match_hostname import match_hostname, CertificateError
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks import export_services
 
 LOG = logging.getLogger('__name__')
 
@@ -168,17 +167,3 @@ def move(arglist, context):
                      state.get('id', -1), state['status'], state.get('reason', ''))
     if errmsgs:
         raise Exception('One or more move jobs failed', errmsgs)
-
-
-@app.task()
-def export_result(zipurl, serviceid, context):
-    # FIXME: why do we pass in zipurl?
-    #        mmm.... crappy hack with no auth support
-    zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
-    export_func = getattr(export_services, "export_{}".format(serviceid), export_services.unsupported_service)
-    export_func(zipurl, serviceid, context)
-    # try:
-    #     export_func(zipurl, serviceid, context)
-    # except Exception as e:
-    #     LOG.error(str(e))
-    #     raise e
