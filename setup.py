@@ -30,11 +30,14 @@ setup(
         'requests',
         'requests-oauthlib',
         'backports.ssl_match_hostname',
-        'google-api-python-client',
     ],
     extras_require={
         'bccvl': [
             'org.bccvl.site'
+        ],
+        'exports': [
+            'google-api-python-client',
+            'dropbox',
         ]
     }
 )
