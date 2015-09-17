@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import requests
 from requests_oauthlib import OAuth1
 import json
@@ -18,10 +20,25 @@ from apiclient import errors
 from apiclient.http import MediaFileUpload, MediaIoBaseUpload
 import mimetypes
 import shutil
+from org.bccvl.tasks.celery import app
 
 import dropbox
 
 LOG = logging.getLogger(__name__)
+
+
+@app.task()
+def export_result(zipurl, serviceid, context):
+    # FIXME: why do we pass in zipurl?
+    #        mmm.... crappy hack with no auth support
+    zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
+    export_func = globals().get("export_{}".format(serviceid), unsupported_service)
+    export_func(zipurl, serviceid, context)
+    # try:
+    #     export_func(zipurl, serviceid, context)
+    # except Exception as e:
+    #     LOG.error(str(e))
+    #     raise e
 
 
 TMPL_EMAIL_SUCCESS = """Hello {fullname},
@@ -584,8 +601,6 @@ def unsupported_service(zipurl, serviceid, context):
         "{} is currently not a supported service".format(serviceid))
 
 # for local testing.
-
-
 def main():
     with open('/tmp/job.json') as f:
         p = json.load(f)
