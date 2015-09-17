@@ -31,7 +31,6 @@ setup(
         'requests-oauthlib',
         'backports.ssl_match_hostname',
         'google-api-python-client',
-        'dropbox',
     ],
     extras_require={
         'bccvl': [
