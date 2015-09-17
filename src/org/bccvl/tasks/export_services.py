@@ -18,7 +18,6 @@ from apiclient import errors
 from apiclient.http import MediaFileUpload, MediaIoBaseUpload
 import mimetypes
 import shutil
-import dropbox
 
 LOG = logging.getLogger(__name__)
 
