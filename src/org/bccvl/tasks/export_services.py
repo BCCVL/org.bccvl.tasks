@@ -209,7 +209,7 @@ def export_figshare(zipurl, serviceid, context):
         raise e
 
     # add files
-    data_files = _get_datafiles(zf)
+    data_files = _get_datafiles(zf) + filter(lambda x: x.endswith('mets.xml'), zf.namelist())
     # upload one by one to avoid making one enourmous request
     for data_file in data_files:
         files = {'filedata': (split(data_file)[-1], zf.open(data_file, 'r'))}
