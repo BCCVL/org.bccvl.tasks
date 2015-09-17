@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 TMPL_EMAIL_SUCCESS = """Hello {fullname},
 
-Your dataset '{dataset_name}' has been successfully uploaded to {service_name}.
+Your experiment '{experiment_name}' has been successfully uploaded to {service_name}.
 
 {message}
 
@@ -34,7 +34,7 @@ The BCCVL
 
 TMPL_EMAIL_FAILURE = """Hello {fullname},
 
-An error occured while uploading your dataset {dataset_name} to {service_name}.
+An error occured while uploading your experiment {experiment_name} to {service_name}.
 
 Please find below the error message returned by the service. If the problem persists, please contact the BCCVL support team.
 
@@ -120,7 +120,7 @@ def _get_datafiles(zf, include_prov=True):
             '/')[1] == 'data' and len(x.split('/')[-1])), zf.namelist())
 
 
-def _send_mail(context, serviceid, dataset_name, body_message, success=True):
+def _send_mail(context, serviceid, experiment_name, body_message, success=True):
     """
     Send email about success / failure to user.
     """
@@ -133,7 +133,7 @@ def _send_mail(context, serviceid, dataset_name, body_message, success=True):
         TMPL = TMPL_EMAIL_SUCCESS
         body = TMPL.format(
             fullname=fullname,
-            dataset_name=dataset_name,
+            experiment_name=experiment_name,
             message=body_message.strip(),
             service_name=serviceid.title())
         msg = MIMEText(body)
@@ -143,7 +143,7 @@ def _send_mail(context, serviceid, dataset_name, body_message, success=True):
         TMPL = TMPL_EMAIL_FAILURE
         body = TMPL.format(
             fullname=fullname,
-            dataset_name=dataset_name,
+            experiment_name=experiment_name,
             message=body_message.strip(),
             service_name=serviceid.title())
         msg = MIMEText(body)
@@ -151,8 +151,8 @@ def _send_mail(context, serviceid, dataset_name, body_message, success=True):
     msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
     msg['To'] = user_address
 
-    # server = smtplib.SMTP("localhost")
-    server = smtplib.SMTP("smtp.griffith.edu.au")
+    server = smtplib.SMTP("localhost")
+    # server = smtplib.SMTP("smtp.griffith.edu.au")
     server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
     server.quit()
 
@@ -305,6 +305,7 @@ def export_figshare(zipurl, serviceid, context):
 def export_googledrive(zipurl, serviceid, context):
     zf = _get_zip(zipurl)
     metadata = _get_metadata(zf)
+    uploaded = []
     try:
         client_tokens, access_tokens = _get_oauth_tokens(
             serviceid, context['user']['id'])
@@ -352,9 +353,23 @@ def export_googledrive(zipurl, serviceid, context):
         _send_mail(context, serviceid, metadata['title'], msg, success=False)
 
     try:
-        files = drive_service.files().list().execute()
-
-        folders = dict((f['title'], f['id']) for f in files['items'] if f[
+        files = []
+        page_token = None
+        while True:
+            try:
+                param = {}
+                if page_token:
+                  param['pageToken'] = page_token
+                result = drive_service.files().list(**param).execute()
+      
+                files.extend(result['items'])
+                page_token = result.get('nextPageToken')
+                if not page_token:
+                  break
+            except errors.HttpError, error:
+                print 'An error occurred: %s' % error
+                break
+        folders = dict((f['title'], f['id']) for f in files if f[
                        'mimeType'] == "application/vnd.google-apps.folder" and f['labels']['trashed'] == False)
         bccvl_folder_id = folders.get("BCCVL", None)
 
@@ -416,6 +431,7 @@ def export_googledrive(zipurl, serviceid, context):
             file = drive_service.files().insert(
                 body=body,
                 media_body=media_body).execute()
+            uploaded.append(data_file)
 
         mets_fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
         mimetype = _guess_mimetype(mets_fn)
@@ -434,6 +450,7 @@ def export_googledrive(zipurl, serviceid, context):
         file = drive_service.files().insert(
             body=body,
             media_body=media_body).execute()
+        uploaded.append(mets_fn)
 
         prov_fn = filter(lambda x: x.endswith('prov.ttl'), zf.namelist())
         if len(prov_fn):
@@ -454,6 +471,15 @@ def export_googledrive(zipurl, serviceid, context):
             file = drive_service.files().insert(
                 body=body,
                 media_body=media_body).execute()
+            uploaded.append(prov_fn)
+
+        msg = "\n".join(uploaded)
+        _send_mail(
+            context,
+            serviceid,
+            metadata['title'],
+            msg,
+            success=True)
 
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
@@ -473,3 +499,12 @@ def export_dropbox(zipurl, serviceid, context):
 def unsupported_service(zipurl, serviceid, context):
     raise NotImplementedError(
         "{} is currently not a supported service".format(serviceid))
+
+# for local testing. 
+def main():
+    with open('/tmp/job.json') as f:
+        p = json.load(f)
+    export_googledrive(p['zipurl'], p['serviceid'], p['context'])
+
+if __name__ == "__main__":
+    main()
