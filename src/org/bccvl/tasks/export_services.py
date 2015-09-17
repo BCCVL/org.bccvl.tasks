@@ -122,7 +122,12 @@ def _get_datafiles(zf, include_prov=True):
             '/')[1] == 'data' and len(x.split('/')[-1])), zf.namelist())
 
 
-def _send_mail(context, serviceid, experiment_name, body_message, success=True):
+def _send_mail(
+        context,
+        serviceid,
+        experiment_name,
+        body_message,
+        success=True):
     """
     Send email about success / failure to user.
     """
@@ -361,14 +366,14 @@ def export_googledrive(zipurl, serviceid, context):
             try:
                 param = {}
                 if page_token:
-                  param['pageToken'] = page_token
+                    param['pageToken'] = page_token
                 result = drive_service.files().list(**param).execute()
-      
+
                 files.extend(result['items'])
                 page_token = result.get('nextPageToken')
                 if not page_token:
-                  break
-            except errors.HttpError, error:
+                    break
+            except errors.HttpError as error:
                 print 'An error occurred: %s' % error
                 break
         folders = dict((f['title'], f['id']) for f in files if f[
@@ -538,7 +543,6 @@ def export_dropbox(zipurl, serviceid, context):
                                  [-1]), open(join(tmpdir, fn), 'rb'))
             uploaded.append(fn)
 
-
         mets_fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
         client.put_file(
             join(
@@ -565,7 +569,6 @@ def export_dropbox(zipurl, serviceid, context):
             msg,
             success=True)
 
-
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
             metadata['title'], str(e))
@@ -576,14 +579,13 @@ def export_dropbox(zipurl, serviceid, context):
             shutil.rmtree(tmpdir)
 
 
-
-
-
 def unsupported_service(zipurl, serviceid, context):
     raise NotImplementedError(
         "{} is currently not a supported service".format(serviceid))
 
-# for local testing. 
+# for local testing.
+
+
 def main():
     with open('/tmp/job.json') as f:
         p = json.load(f)
