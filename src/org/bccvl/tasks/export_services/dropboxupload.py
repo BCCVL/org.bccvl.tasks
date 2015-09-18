@@ -33,13 +33,16 @@ def export_dropbox(zipurl, serviceid, context):
     zf = get_zip(zipurl)
     metadata = get_metadata(zf)
     foldername = metadata['title']
-    try: 
+    try:
         success = False
-        for i in range(5): # we'll give it 5 tries
-            LOG.info("Attempting to upload '{}' to dropbox.".format(metadata['title']))
+        for i in range(5):  # we'll give it 5 tries
+            LOG.info(
+                "Attempting to upload '{}' to dropbox.".format(
+                    metadata['title']))
             if i != 0:
-                t = randint(5,20)
-                LOG.info("Waiting for {} seconds before trying again".format(t))
+                t = randint(5, 20)
+                LOG.info(
+                    "Waiting for {} seconds before trying again".format(t))
                 time.sleep(t)
             try:
                 client = dropbox.client.DropboxClient(access_token)
@@ -69,7 +72,9 @@ def export_dropbox(zipurl, serviceid, context):
                                          [-1]), open(join(tmpdir, fn), 'rb'))
                     uploaded.append(fn)
 
-                mets_fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
+                mets_fn = filter(
+                    lambda x: x.endswith('mets.xml'),
+                    zf.namelist())[0]
                 client.put_file(
                     join(
                         foldername, 'mets.xml'), open(
@@ -77,7 +82,9 @@ def export_dropbox(zipurl, serviceid, context):
                                 tmpdir, mets_fn), 'rb'))
                 uploaded.append(mets_fn)
 
-                prov_fns = filter(lambda x: x.endswith('prov.ttl'), zf.namelist())
+                prov_fns = filter(
+                    lambda x: x.endswith('prov.ttl'),
+                    zf.namelist())
                 if len(prov_fns):
                     prov_fn = prov_fns[0]
                     client.put_file(
@@ -95,16 +102,20 @@ def export_dropbox(zipurl, serviceid, context):
                     msg,
                     success=True)
                 success = True
-                LOG.info("Upload of '{}' to dropbox complete.".format(metadata['title']))
+                LOG.info(
+                    "Upload of '{}' to dropbox complete.".format(
+                        metadata['title']))
                 break
             except dropbox.rest.ErrorResponse as e:
                 if not e.status == 503:
                     raise e
                 else:
                     last_error = str(e)
-                    LOG.warning("Unsuccessful attempt to upload to dropbox: "+str(e))
+                    LOG.warning(
+                        "Unsuccessful attempt to upload to dropbox: " +
+                        str(e))
         if not success:
-            raise Exception("Too many retries. Last error: "+last_error)
+            raise Exception("Too many retries. Last error: " + last_error)
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
             metadata['title'], str(e))
