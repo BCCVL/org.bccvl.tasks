@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 from org.bccvl.tasks.celery import app
-from .dropbox import export_dropbox
-from .googledrive import export_googledrive
-from .figshare import export_figshare
+from .dropboxupload import export_dropbox
+from .googledriveupload import export_googledrive
+from .figshareupload import export_figshare
 
 
 
