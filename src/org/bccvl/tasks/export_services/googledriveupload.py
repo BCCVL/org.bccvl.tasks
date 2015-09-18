@@ -92,11 +92,11 @@ def export_googledrive(zipurl, serviceid, context):
                 break
         folders = dict((f['title'], f['id']) for f in files if f[
                        'mimeType'] == "application/vnd.google-apps.folder" and f['labels']['trashed'] == False)
-        bccvl_folder_id = folders.get("BCCVL", None)
+        bccvl_folder_id = folders.get("BCCVL Experiments", None)
 
         if bccvl_folder_id is None:
             body = {
-                'title': "BCCVL",
+                'title': "BCCVL Experiments",
                 'description': 'BCCVL Experiments (http://www.bccvl.org.au)',
                 'mimeType': 'application/vnd.google-apps.folder',
             }
