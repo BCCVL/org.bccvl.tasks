@@ -225,10 +225,10 @@ def import_result(params, context, **kw):
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': results_folder,
                                  'outputmap': params['result']['outputs']})
-                                 
+
     jt = IJobTracker(kw['_context'])
-                                     
-    
+
+
 
 
 # TODO: this task is not allowed to fail
@@ -240,22 +240,31 @@ def set_progress(state, message, context, **kw):
         jt.state = state
         LOG.info("Plone: Update job state %s", state)
 
-        # Send email to notify results are ready
-        fullname = context['user']['fullname']
-        email_addr = context['user']['email']
-        experiment_name = context['experiment']['title']
-        experiment_url = context['experiment']['url']
-        success = (jt.state == 'COMPLETED')
-        if fullname and email_addr and experiment_name and experiment_url:
-            send_mail(fullname, email_addr, experiment_name, experiment_url, success)
-        else:
-            LOG.warn("Not sending email. Invalid parameters")
+        # FIXME: we sholud probably send emails in another place (or as additional task in chain?)
+        #        there are too many things that can go wrong here and this task is not allowed to
+        #        fail (throw an exception) otherwise the user will never see a status update
+        # FIXME: should be a better check here, we want to send email only
+        #        for experiment results, not for dataset imports (i.e. ala)
+        try:
+            if 'experiment' in context:
+                # Send email to notify results are ready
+                fullname = context['user']['fullname']
+                email_addr = context['user']['email']
+                experiment_name = context['experiment']['title']
+                experiment_url = context['experiment']['url']
+                success = (jt.state == 'COMPLETED')
+                if fullname and email_addr and experiment_name and experiment_url:
+                    send_mail(fullname, email_addr, experiment_name, experiment_url, success)
+                else:
+                    LOG.warn("Not sending email. Invalid parameters")
+        except Exception as e:
+            LOG.error('Got an exception in plone.set_progress while trying to send an email', e)
     else:
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
     kw['_context'].reindexObject() # TODO: reindex job state only?
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
-    
+
     # compute the experiement run time if all its jobs are completed
     # The experiment is the parent job
     jt = IJobTracker(kw['_context'].__parent__)
@@ -276,8 +285,8 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
 
     htmlbody = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.html")
     htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
-  
-    msg = MIMEMultipart('alternative')    
+
+    msg = MIMEMultipart('alternative')
     msg.attach(MIMEText(body, 'plain'))
     msg.attach(MIMEText(htmlbody, 'html'))
 
