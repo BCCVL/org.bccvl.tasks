@@ -1,2 +1,2 @@
 include README.md MANIFEST.in LICENSE
-recursive-include src *.py *.txt *.sh
+recursive-include src *.py *.txt *.sh *.html
