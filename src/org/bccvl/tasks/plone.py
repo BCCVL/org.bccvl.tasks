@@ -258,7 +258,7 @@ def set_progress(state, message, context, **kw):
                 else:
                     LOG.warn("Not sending email. Invalid parameters")
         except Exception as e:
-            LOG.error('Got an exception in plone.set_progress while trying to send an email', e)
+            LOG.error('Got an exception in plone.set_progress while trying to send an email: %s', e)
     else:
         jt.state = 'RUNNING'
         LOG.info("Plone: Update job state RUNNING")
