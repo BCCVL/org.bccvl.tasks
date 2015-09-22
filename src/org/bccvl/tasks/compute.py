@@ -140,7 +140,7 @@ def run_script(wrapper, params, context):
         import_job.link_error(cleanup_job)
 
         if ret != 0:
-            errmsg = 'Script execution faild with exit code {0}'.format(ret)
+            errmsg = 'Script execution failed with exit code {0}'.format(ret)
             finish_job = set_progress_job('FAILED', errmsg, context)
         else:
             finish_job = set_progress_job('COMPLETED', 'Task succeeded', context)
