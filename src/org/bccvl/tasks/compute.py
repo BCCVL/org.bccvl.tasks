@@ -83,6 +83,90 @@ def perl_task(params, context):
     # 2. run task
     run_script(wrapper, params, context)
 
+@app.task()
+def demo_task(params):
+    # 1. Get R wrapper
+    wrapper = resource_string('org.bccvl.tasks', 'r_wrapper.sh')
+    # 2. Run task
+    run_script_SDM(wrapper, params, {})
+
+
+def run_script_SDM(wrapper, params, context):
+    # TODO: there are many little things that can fail here, and we
+    #       need to communicate it properly back to the user.
+    # TODO: however, we can't really do anything in case sending
+    #       messages doesn't work.
+    try:
+        errmsg = 'Fail to transfer/import data'
+        # set_progress('RUNNING', 'Transferring data', context)
+
+        # create initial folder structure
+        create_workenv(params)
+
+        # transfer input files
+        transfer_inputs(params, context)
+
+        # Determine the number of pseudoabsence points
+        pseudoabs = len(open(params['params']['species_occurrence_dataset']['filename']).readlines()) - 1
+        params['params'].update({'species_number_pseudo_absence_points': pseudoabs,
+                                                    'species_pseudo_absence_points': True})
+
+        # create script
+        scriptname = create_scripts(params, context)
+
+        # run the script
+        errmsg = 'Fail to run experiement'
+        # set_progress('RUNNING', 'Executing job', context)
+
+        scriptout = os.path.join(params['env']['outputdir'],
+                                 params['worker']['script']['name'] + 'out')
+        outfile = open(scriptout, 'w')
+        wrapsh = os.path.join(params['env']['scriptdir'], 'wrap.sh')
+        open(wrapsh, 'w').write(wrapper)
+        # zip up workenv if requested
+        if params['worker'].get('zipworkenv', False):
+            # make sure tmp is big enough
+            # TODO: add toolkit name to zip name ... workenv_bioclim.zip
+            zip_folder(os.path.join(params['env']['outputdir'], 'workenv.zip'),
+                       params['env']['workdir'])
+        cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
+        LOG.info("Executing: %s", ' '.join(cmd))
+        proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
+                                close_fds=True,
+                                stdout=outfile, stderr=subprocess.STDOUT)
+        rpid, ret, rusage = os.wait4(proc.pid, 0)
+        writerusage(rusage, params)
+        # TODO: check whether ret and proc.returncode are the same
+
+        # move results back
+        errmsg = 'Fail to transfer results back'
+        # set_progress('RUNNING', 'Transferring outputs', context)
+
+        # Push the projection to nectar, for the wordpress site to fetch
+        transfer_afileout(params, context)
+
+    except Exception as e:
+        # TODO: capture stacktrace
+        # need to start import to get import cleaned up
+
+        # Log error message with stacktrace.
+        #:( exposes internals, ugly hash, complicated with admin only access
+        #-> certainly need to get rid of exception in message.
+        # test exceptions:
+        #  ... upload file, replace with something else (unzip error)
+        #  ... delete file and rerun experiment (donwload error)
+        #  ... create file/folder error? (can't write log)
+        #  ... how to simulate fault? (download error)
+
+        # log error message with exception and traceback
+        LOG.exception(errmsg)
+        raise e
+    finally:
+        # TODO:  check if dir exists
+        path = params['env'].get('workdir', None)
+        if path and os.path.exists(path):
+            shutil.rmtree(path)
+
 
 def run_script(wrapper, params, context):
     # TODO: there are many little things that can fail here, and we
@@ -90,6 +174,8 @@ def run_script(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
+        #import ipdb; ipdb.set_trace()
+
         errmsg = 'Fail to transfer/import data'
         set_progress('RUNNING', 'Transferring data', context)
 
@@ -195,7 +281,7 @@ def create_workenv(params):
 
 
 def transfer_inputs(params, context):
-    move_tasks = {}  # list af move job arguments
+    move_tasks = {}  # list of move job arguments
     # go through params['worker']['files'] and place files in local location
     for input in params['worker']['files']:
         input_param = params['params'][input]
@@ -273,6 +359,19 @@ def create_scripts(params, context):
         jsonfile.close()
         return scriptname
 
+def transfer_afileout(params, context):
+    # TO-DO: Catch an exception if there isn't a .tif output file
+    # Fetch a tiff file that isn't a clamping mask
+    move_tasks = []
+    import glob
+    srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'], 'demoSDM',
+                                                  'proj_current', '*.tif')) if 'Clamping' not in x][0]
+    destpath = os.path.join(params['result']['results_dir'], 'projection.tif')
+    move_tasks.append((
+            'scp://bccvl@' + get_public_ip() + srcpath,
+            destpath)
+        )
+    datamover.move(move_tasks, context)
 
 def transfer_outputs(params, context):
     move_tasks = []
@@ -305,10 +404,18 @@ def get_move_args(file_descr, params, context):
     inputdir = os.path.join(params['env']['inputdir'], file_descr['uuid'])
     os.mkdir(inputdir)
     src = file_descr['internalurl']
-    destfile = os.path.join(inputdir, file_descr['filename'])
-    dest = 'scp://bccvl@' + get_public_ip() + destfile
-    # update params with local filename
-    file_descr['filename'] = destfile
+    from urlparse import urlparse
+    parsedurl = urlparse(src)
+    # If it's an ala download for DemoSDM, pass ala url with no filename
+    if parsedurl.scheme == 'ala':
+        destfile = inputdir
+        dest = 'scp://bccvl@' + get_public_ip() + destfile
+        file_descr['filename'] = os.path.join(inputdir, 'ala_occurrence.csv')
+    else:
+        # update params with local filename
+        destfile = os.path.join(inputdir, file_descr['filename'])
+        dest = 'scp://bccvl@' + get_public_ip() + destfile
+        file_descr['filename'] = destfile
     return {'args': (src, dest),
             'filename': destfile}
 
