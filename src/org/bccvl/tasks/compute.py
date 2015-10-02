@@ -97,11 +97,15 @@ def run_script_SDM(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
+       
         errmsg = 'Fail to transfer/import data'
-        # set_progress('RUNNING', 'Transferring data', context)
 
         # create initial folder structure
         create_workenv(params)
+        
+        # from celery.contrib import rdb; rdb.set_trace()
+        # TODO: Write status as 'FETCHING' 
+        write_status_to_nectar(params, context, u'FETCHING')
 
         # transfer input files
         transfer_inputs(params, context)
@@ -116,7 +120,8 @@ def run_script_SDM(wrapper, params, context):
 
         # run the script
         errmsg = 'Fail to run experiement'
-        # set_progress('RUNNING', 'Executing job', context)
+        # TODO: Write status as 'RUNNING' 
+        write_status_to_nectar(params, context, u'RUNNING')
 
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
@@ -131,6 +136,7 @@ def run_script_SDM(wrapper, params, context):
                        params['env']['workdir'])
         cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
+        
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
@@ -140,11 +146,15 @@ def run_script_SDM(wrapper, params, context):
 
         # move results back
         errmsg = 'Fail to transfer results back'
-        # set_progress('RUNNING', 'Transferring outputs', context)
-
+        
+        # TODO: Write status as 'TRANSFERRING'
+        write_status_to_nectar(params, context, u'TRANSFERRING') 
+        
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
-
+        
+        # TODO: Write status as 'COMPLETE' 
+        write_status_to_nectar(params, context, u'COMPLETE')
     except Exception as e:
         # TODO: capture stacktrace
         # need to start import to get import cleaned up
@@ -159,6 +169,8 @@ def run_script_SDM(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
+        write_status_to_nectar(params, context, u'FAILED')
+        errmsg = "Something failed"
         LOG.exception(errmsg)
         raise e
     finally:
@@ -181,6 +193,7 @@ def run_script(wrapper, params, context):
 
         # create initial folder structure
         create_workenv(params)
+
         # transfer input files
         transfer_inputs(params, context)
         # create script
@@ -367,6 +380,21 @@ def transfer_afileout(params, context):
     srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'], 'demoSDM',
                                                   'proj_current', '*.tif')) if 'Clamping' not in x][0]
     destpath = os.path.join(params['result']['results_dir'], 'projection.tif')
+    move_tasks.append((
+            'scp://bccvl@' + get_public_ip() + srcpath,
+            destpath)
+        )
+    datamover.move(move_tasks, context)
+
+def write_status_to_nectar(params, context, status):
+
+    move_tasks = []
+    # TODO: Figure out where the status file lives
+    srcpath = os.path.join(params['env']['outputdir'], 'state.json')
+    with open(srcpath, 'w') as f_json:
+        f_json.write(json.dumps({u'status': status}, indent=4))
+
+    destpath = os.path.join(params['result']['results_dir'], 'state.json')
     move_tasks.append((
             'scp://bccvl@' + get_public_ip() + srcpath,
             destpath)
