@@ -50,6 +50,7 @@ class AfterCommitTask(Task):
         def hook(success):
             # TODO: maybe if apply fails try to send a state update failed
             if success:
+                # FIXME: this is the earliest possible place wher i can get a taskid
                 super(AfterCommitTask, self).apply_async(*args, **kw)
         transaction.get().addAfterCommitHook(hook)
         # apply_async normally returns a deferred result object,
@@ -61,7 +62,8 @@ def after_commit_task(task, *args, **kw):
     def hook(success):
         if success:
             # TODO: maybe if apply fails try to send a state update failed
-            task.apply_async(args=args, kwargs=kw)
+            # FIXME: this is the earliest possible place wher i can get a taskid
+            result = task.apply_async(args=args, kwargs=kw)
     transaction.get().addAfterCommitHook(hook)
 
 
