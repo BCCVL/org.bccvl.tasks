@@ -144,6 +144,8 @@ def run_script_SDM(wrapper, params, context):
         writerusage(rusage, params)
         # TODO: check whether ret and proc.returncode are the same
 
+        # Reproject to Web Mercator
+        reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
         
@@ -372,14 +374,53 @@ def create_scripts(params, context):
         jsonfile.close()
         return scriptname
 
+def reproject_to_webmercator(params, context):
+    # from celery.contrib import rdb; rdb.set_trace()
+    # TO-DO: Catch an exception if there isn't a .tif output file
+    srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
+    # Fetch the original projection
+    import glob
+    srcfile = [x for x in glob.iglob(os.path.join(srcpath,
+                                                  'proj_current', '*.tif')) if 'Clamping' not in x][0]
+    wmcfile = os.path.join(srcpath, 'webmcproj.tif')
+    destfile = '.'.join((os.path.splitext(srcfile)[0], '.png'))
+
+    # Create a color file
+    coltxt = ['1000 216 7 7 255', '900 232 16 16 255', '800 234 39 39 255',
+                    '700 236 66 66 255', '600 239 96 96 255', '500 242 128 128 255',
+                    '400 246 159 159 255', '300 249 189 189 255', '200 251 216 216 255',
+                    '100 253 239 239 255', '0% 255 255 255 255', 'nv 255 255 255 0']
+    colsrc = os.path.join(params['env']['outputdir'], 'col.txt')
+    with open(colsrc, 'w') as f:
+        for color in coltxt:
+            f.write('%s\n' % color)
+
+    commreproj = ['/usr/bin/gdalwarp', '-s_srs', 'epsg:4326', '-t_srs', 'epsg:3857', srcfile, wmcfile]
+    commrelief = ['/usr/bin/gdaldem', 'color-relief', '-of', 'PNG', wmcfile, colsrc, destfile, '-alpha']
+
+    scriptout = os.path.join(params['env']['outputdir'], params['worker']['script']['name'] + 'out')
+    outfile = open(scriptout, 'w')
+
+    try:
+        proc = subprocess.Popen(commreproj, close_fds=True,
+                                stdout=outfile, stderr=subprocess.STDOUT)
+        rpid, ret, rusage = os.wait4(proc.pid, 0)
+        proc = subprocess.Popen(commrelief, close_fds=True,
+                                stdout=outfile, stderr=subprocess.STDOUT)
+        rpid, ret, rusage = os.wait4(proc.pid, 0)        
+    except Exception as e:
+        write_status_to_nectar(params, context, u'FAILED')
+        raise e
+
+
 def transfer_afileout(params, context):
     # TO-DO: Catch an exception if there isn't a .tif output file
     # Fetch a tiff file that isn't a clamping mask
     move_tasks = []
     import glob
     srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'], 'demoSDM',
-                                                  'proj_current', '*.tif')) if 'Clamping' not in x][0]
-    destpath = os.path.join(params['result']['results_dir'], 'projection.tif')
+                                                  'proj_current', '*.png')) if 'Clamping' not in x][0]
+    destpath = os.path.join(params['result']['results_dir'], 'projection.png')
     move_tasks.append((
             'scp://bccvl@' + get_public_ip() + srcpath,
             destpath)
