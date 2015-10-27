@@ -97,14 +97,14 @@ def run_script_SDM(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
-       
+
         errmsg = 'Fail to transfer/import data'
 
         # create initial folder structure
         create_workenv(params)
-        
+
         # from celery.contrib import rdb; rdb.set_trace()
-        # TODO: Write status as 'FETCHING' 
+        # TODO: Write status as 'FETCHING'
         write_status_to_nectar(params, context, u'FETCHING')
 
         # transfer input files
@@ -113,14 +113,14 @@ def run_script_SDM(wrapper, params, context):
         # Determine the number of pseudoabsence points
         pseudoabs = len(open(params['params']['species_occurrence_dataset']['filename']).readlines()) - 1
         params['params'].update({'species_number_pseudo_absence_points': pseudoabs,
-                                                    'species_pseudo_absence_points': True})
+                                 'species_pseudo_absence_points': True})
 
         # create script
         scriptname = create_scripts(params, context)
 
         # run the script
         errmsg = 'Fail to run experiement'
-        # TODO: Write status as 'RUNNING' 
+        # TODO: Write status as 'RUNNING'
         write_status_to_nectar(params, context, u'RUNNING')
 
         scriptout = os.path.join(params['env']['outputdir'],
@@ -136,7 +136,7 @@ def run_script_SDM(wrapper, params, context):
                        params['env']['workdir'])
         cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
-        
+
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
@@ -148,14 +148,14 @@ def run_script_SDM(wrapper, params, context):
         reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
-        
+
         # TODO: Write status as 'TRANSFERRING'
-        write_status_to_nectar(params, context, u'TRANSFERRING') 
-        
+        write_status_to_nectar(params, context, u'TRANSFERRING')
+
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
-        
-        # TODO: Write status as 'COMPLETE' 
+
+        # TODO: Write status as 'COMPLETE'
         write_status_to_nectar(params, context, u'COMPLETE')
     except Exception as e:
         # TODO: capture stacktrace
@@ -381,15 +381,16 @@ def reproject_to_webmercator(params, context):
     # Fetch the original projection
     import glob
     srcfile = [x for x in glob.iglob(os.path.join(srcpath,
-                                                  'proj_current', '*.tif')) if 'Clamping' not in x][0]
+                                                  'proj_current', '*.tif'))
+               if 'Clamping' not in x][0]
     wmcfile = os.path.join(srcpath, 'webmcproj.tif')
     destfile = '.'.join((os.path.splitext(srcfile)[0], '.png'))
 
     # Create a color file
     coltxt = ['1000 216 7 7 255', '900 232 16 16 255', '800 234 39 39 255',
-                    '700 236 66 66 255', '600 239 96 96 255', '500 242 128 128 255',
-                    '400 246 159 159 255', '300 249 189 189 255', '200 251 216 216 255',
-                    '100 253 239 239 255', '0% 255 255 255 255', 'nv 255 255 255 0']
+              '700 236 66 66 255', '600 239 96 96 255', '500 242 128 128 255',
+              '400 246 159 159 255', '300 249 189 189 255', '200 251 216 216 255',
+              '100 253 239 239 255', '0% 255 255 255 255', 'nv 255 255 255 0']
     colsrc = os.path.join(params['env']['outputdir'], 'col.txt')
     with open(colsrc, 'w') as f:
         for color in coltxt:
@@ -407,7 +408,7 @@ def reproject_to_webmercator(params, context):
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         proc = subprocess.Popen(commrelief, close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid, 0)        
+        rpid, ret, rusage = os.wait4(proc.pid, 0)
     except Exception as e:
         write_status_to_nectar(params, context, u'FAILED')
         raise e
@@ -418,8 +419,10 @@ def transfer_afileout(params, context):
     # Fetch a tiff file that isn't a clamping mask
     move_tasks = []
     import glob
-    srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'], 'demoSDM',
-                                                  'proj_current', '*.png')) if 'Clamping' not in x][0]
+    srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'],
+                                                  'demoSDM',
+                                                  'proj_current', '*.png'))
+               if 'Clamping' not in x][0]
     destpath = os.path.join(params['result']['results_dir'], 'projection.png')
     move_tasks.append((
             'scp://bccvl@' + get_public_ip() + srcpath,
