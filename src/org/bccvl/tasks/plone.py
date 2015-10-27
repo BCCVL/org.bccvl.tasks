@@ -29,7 +29,8 @@ from zope.component.hooks import setSite, getSite
 # TODO: decide which one to use
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
-from org.bccvl.site.interfaces import IJobTracker
+from org.bccvl.site.job.interfaces import IJobTracker
+from org.bccvl.site.interfaces import IExperimentJobTracker
 import pkg_resources
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -49,6 +50,7 @@ class AfterCommitTask(Task):
         def hook(success):
             # TODO: maybe if apply fails try to send a state update failed
             if success:
+                # FIXME: this is the earliest possible place wher i can get a taskid
                 super(AfterCommitTask, self).apply_async(*args, **kw)
         transaction.get().addAfterCommitHook(hook)
         # apply_async normally returns a deferred result object,
@@ -60,7 +62,8 @@ def after_commit_task(task, *args, **kw):
     def hook(success):
         if success:
             # TODO: maybe if apply fails try to send a state update failed
-            task.apply_async(args=args, kwargs=kw)
+            # FIXME: this is the earliest possible place wher i can get a taskid
+            result = task.apply_async(args=args, kwargs=kw)
     transaction.get().addAfterCommitHook(hook)
 
 
@@ -226,10 +229,6 @@ def import_result(params, context, **kw):
                    resultsource={'path': results_folder,
                                  'outputmap': params['result']['outputs']})
 
-    jt = IJobTracker(kw['_context'])
-
-
-
 
 # TODO: this task is not allowed to fail
 @zope_task()
@@ -267,8 +266,9 @@ def set_progress(state, message, context, **kw):
 
     # compute the experiement run time if all its jobs are completed
     # The experiment is the parent job
-    jt = IJobTracker(kw['_context'].__parent__)
-    if jt.state in ('COMPLETED', 'FAILED'):
+    jt = IExperimentJobTracker(kw['_context'].__parent__, None)
+    if jt and jt.state in ('COMPLETED', 'FAILED'):
+        # FIXME: store run time on job
         exp = jt.context
         exp.runtime = time.time() - (exp.created().millis()/1000.0)
 
