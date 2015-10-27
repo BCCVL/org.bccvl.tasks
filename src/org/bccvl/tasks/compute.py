@@ -172,7 +172,7 @@ def run_script_SDM(wrapper, params, context):
 
         # log error message with exception and traceback
         write_status_to_nectar(params, context, u'FAILED')
-        errmsg = "Something failed"
+        errmsg = "DemoSDM failed"
         LOG.exception(errmsg)
         raise e
     finally:
