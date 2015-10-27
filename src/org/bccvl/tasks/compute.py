@@ -174,7 +174,7 @@ def run_script_SDM(wrapper, params, context):
         write_status_to_nectar(params, context, u'FAILED')
         errmsg = "DemoSDM failed"
         LOG.exception(errmsg)
-        raise e
+        raise
     finally:
         # TODO:  check if dir exists
         path = params['env'].get('workdir', None)
