@@ -84,11 +84,11 @@ def perl_task(params, context):
     run_script(wrapper, params, context)
 
 @app.task()
-def demo_task(params):
+def demo_task(params, context):
     # 1. Get R wrapper
     wrapper = resource_string('org.bccvl.tasks', 'r_wrapper.sh')
     # 2. Run task
-    run_script_SDM(wrapper, params, {})
+    run_script_SDM(wrapper, params, context)
 
 
 def run_script_SDM(wrapper, params, context):
@@ -99,13 +99,10 @@ def run_script_SDM(wrapper, params, context):
     try:
 
         errmsg = 'Fail to transfer/import data'
+        set_progress('RUNNING', 'Transferring data', context)
 
         # create initial folder structure
         create_workenv(params)
-
-        # from celery.contrib import rdb; rdb.set_trace()
-        # TODO: Write status as 'FETCHING'
-        write_status_to_nectar(params, context, u'FETCHING')
 
         # transfer input files
         transfer_inputs(params, context)
@@ -120,8 +117,7 @@ def run_script_SDM(wrapper, params, context):
 
         # run the script
         errmsg = 'Fail to run experiement'
-        # TODO: Write status as 'RUNNING'
-        write_status_to_nectar(params, context, u'RUNNING')
+        set_progress('RUNNING', 'Executing job', context)
 
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
@@ -148,15 +144,11 @@ def run_script_SDM(wrapper, params, context):
         reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
-
-        # TODO: Write status as 'TRANSFERRING'
-        write_status_to_nectar(params, context, u'TRANSFERRING')
-
+        set_progress('RUNNING', 'Transferring outputs', context)
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
 
-        # TODO: Write status as 'COMPLETE'
-        write_status_to_nectar(params, context, u'COMPLETE')
+        set_progress('COMPLETED', 'Task succeeded', context)
     except Exception as e:
         # TODO: capture stacktrace
         # need to start import to get import cleaned up
@@ -171,9 +163,9 @@ def run_script_SDM(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
-        write_status_to_nectar(params, context, u'FAILED')
-        errmsg = "DemoSDM failed"
         LOG.exception(errmsg)
+
+        set_progress('FAILED', errmsg, context)
         raise
     finally:
         # TODO:  check if dir exists
@@ -188,7 +180,6 @@ def run_script(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
-        #import ipdb; ipdb.set_trace()
 
         errmsg = 'Fail to transfer/import data'
         set_progress('RUNNING', 'Transferring data', context)
@@ -272,7 +263,7 @@ def run_script(wrapper, params, context):
         finish_job = set_progress_job('FAILED', errmsg, context)
 
         (start_import | import_job | finish_job).delay()
-        raise e
+        raise
     finally:
         # TODO:  check if dir exists
         path = params['env'].get('workdir', None)
@@ -410,8 +401,7 @@ def reproject_to_webmercator(params, context):
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
     except Exception as e:
-        write_status_to_nectar(params, context, u'FAILED')
-        raise e
+        raise
 
 
 def transfer_afileout(params, context):
@@ -424,21 +414,6 @@ def transfer_afileout(params, context):
                                                   'proj_current', '*.png'))
                if 'Clamping' not in x][0]
     destpath = os.path.join(params['result']['results_dir'], 'projection.png')
-    move_tasks.append((
-            'scp://bccvl@' + get_public_ip() + srcpath,
-            destpath)
-        )
-    datamover.move(move_tasks, context)
-
-def write_status_to_nectar(params, context, status):
-
-    move_tasks = []
-    # TODO: Figure out where the status file lives
-    srcpath = os.path.join(params['env']['outputdir'], 'state.json')
-    with open(srcpath, 'w') as f_json:
-        f_json.write(json.dumps({u'status': status}, indent=4))
-
-    destpath = os.path.join(params['result']['results_dir'], 'state.json')
     move_tasks.append((
             'scp://bccvl@' + get_public_ip() + srcpath,
             destpath)
