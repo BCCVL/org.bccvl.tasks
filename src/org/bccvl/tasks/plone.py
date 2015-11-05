@@ -25,11 +25,12 @@ from ZPublisher.Publish import Retry as RetryException
 import Zope2
 from zope.event import notify
 from zope.app.publication.interfaces import BeforeTraverseEvent
+from zope.component import getUtility
 from zope.component.hooks import setSite, getSite
 # TODO: decide which one to use
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
-from org.bccvl.site.job.interfaces import IJobTracker
+from org.bccvl.site.job.interfaces import IJobTracker, IJobUtility
 from org.bccvl.site.interfaces import IExperimentJobTracker
 import pkg_resources
 from email.mime.text import MIMEText
@@ -123,6 +124,8 @@ def zope_task(**task_kw):
                         # let's extend kw with what we have found
                         kw['_site'] = site
                         kw['_context'] = obj
+                        if 'jobid' in ctxt:
+                            kw['_jobid'] = ctxt['jobid']
 
                         # set up security manager
                         uf = getattr(site, 'acl_users', None)
@@ -233,10 +236,17 @@ def import_result(params, context, **kw):
 # TODO: this task is not allowed to fail
 @zope_task()
 def set_progress(state, message, context, **kw):
-    jt = IJobTracker(kw['_context'])
-    jt.set_progress(state, message)
+    jobtool = getUtility(IJobUtility)
+    if '_jobid' in kw:
+        # TODO: should we do some security check here?
+        #       e.g. only admin and user who owns the job can update it?
+        job = jobtool.get_job_by_id(kw['_jobid'])
+    else:
+        jt = IJobTracker(kw['_context'])
+        job = jobtool.get_job()
+    jobtool.set_progress(job, state, message)
     if state in ('COMPLETED', 'FAILED'):
-        jt.state = state
+        jobtool.set_state(job, state)
         LOG.info("Plone: Update job state %s", state)
 
         # FIXME: we sholud probably send emails in another place (or as additional task in chain?)
@@ -251,7 +261,7 @@ def set_progress(state, message, context, **kw):
                 email_addr = context['user']['email']
                 experiment_name = context['experiment']['title']
                 experiment_url = context['experiment']['url']
-                success = (jt.state == 'COMPLETED')
+                success = (job.state == 'COMPLETED')
                 if fullname and email_addr and experiment_name and experiment_url:
                     send_mail(fullname, email_addr, experiment_name, experiment_url, success)
                 else:
@@ -259,18 +269,19 @@ def set_progress(state, message, context, **kw):
         except Exception as e:
             LOG.error('Got an exception in plone.set_progress while trying to send an email: %s', e)
     else:
-        jt.state = 'RUNNING'
+        jobtool.set_state(job, state)
         LOG.info("Plone: Update job state RUNNING")
-    kw['_context'].reindexObject() # TODO: reindex job state only?
+    if not '_jobid' in kw:
+        kw['_context'].reindexObject() # TODO: reindex job state only?
+        # TODO: track runtime on job object
+        # compute the experiement run time if all its jobs are completed
+        # The experiment is the parent job
+        jt = IExperimentJobTracker(kw['_context'].__parent__, None)
+        if jt and jt.state in ('COMPLETED', 'FAILED'):
+            # FIXME: store run time on job
+            exp = jt.context
+            exp.runtime = time.time() - (exp.created().millis()/1000.0)
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
-
-    # compute the experiement run time if all its jobs are completed
-    # The experiment is the parent job
-    jt = IExperimentJobTracker(kw['_context'].__parent__, None)
-    if jt and jt.state in ('COMPLETED', 'FAILED'):
-        # FIXME: store run time on job
-        exp = jt.context
-        exp.runtime = time.time() - (exp.created().millis()/1000.0)
 
 
 def send_mail(fullname, user_address, experiment_name, experiment_url, success):
