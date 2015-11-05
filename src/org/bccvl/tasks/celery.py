@@ -94,7 +94,7 @@ if 'sentry' in jsonconfig:
     # setup up sentry logging if requested
     from raven import Client
     from raven.contrib.celery import register_signal, register_logger_signal
-    client = Client(jsonconfig['sentry']['dsn'])
+    client = Client(str(jsonconfig['sentry']['dsn']))
     # register a custom filter to filter out duplicate logs
     register_logger_signal(client)
     # hook into the Celery error handler
