@@ -290,7 +290,7 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
     else:
         job_status = 'failed'
 
-    subject = "Your BCCVL experiment is %s" %job_status
+    subject = "Your BCCVL experiment has %s" %job_status
     body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
     body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
 
