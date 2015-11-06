@@ -103,6 +103,8 @@ def run_script_SDM(wrapper, params, context):
 
         # create initial folder structure
         create_workenv(params)
+        # FIXME: remove me
+        write_status_to_nectar(params, context, u'FETCHING')
 
         # transfer input files
         transfer_inputs(params, context)
@@ -118,6 +120,8 @@ def run_script_SDM(wrapper, params, context):
         # run the script
         errmsg = 'Fail to run experiement'
         set_progress('RUNNING', 'Executing job', context)
+        # FIXME: remove me
+        write_status_to_nectar(params, context, u'RUNNING')
 
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
@@ -145,10 +149,16 @@ def run_script_SDM(wrapper, params, context):
         # move results back
         errmsg = 'Fail to transfer results back'
         set_progress('RUNNING', 'Transferring outputs', context)
+        # FIXME: remove me
+        write_status_to_nectar(params, context, u'TRANSFERRING')
+
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
 
         set_progress('COMPLETED', 'Task succeeded', context)
+        # FIXME: remove me
+        write_status_to_nectar(params, context, u'COMPLETE')
+
     except Exception as e:
         # TODO: capture stacktrace
         # need to start import to get import cleaned up
@@ -166,6 +176,9 @@ def run_script_SDM(wrapper, params, context):
         LOG.exception(errmsg)
 
         set_progress('FAILED', errmsg, context)
+        # FIXME: remove me
+        write_status_to_nectar(params, context, u'FAILED')
+
         raise
     finally:
         # TODO:  check if dir exists
@@ -402,6 +415,24 @@ def reproject_to_webmercator(params, context):
         rpid, ret, rusage = os.wait4(proc.pid, 0)
     except Exception as e:
         raise
+
+
+# FIXME: Remove Me
+def write_status_to_nectar(params, context, status):
+
+    move_tasks = []
+    # TODO: Figure out where the status file lives
+    srcpath = os.path.join(params['env']['outputdir'], 'state.json')
+    with open(srcpath, 'w') as f_json:
+        f_json.write(json.dumps({u'status': status,
+                                 'jobid': context['jobid']}, indent=4))
+
+    destpath = os.path.join(params['result']['results_dir'], 'state.json')
+    move_tasks.append((
+            'scp://bccvl@' + get_public_ip() + srcpath,
+            destpath)
+        )
+    datamover.move(move_tasks, context)
 
 
 def transfer_afileout(params, context):
