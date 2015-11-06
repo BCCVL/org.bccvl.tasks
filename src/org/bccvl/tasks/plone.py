@@ -243,7 +243,7 @@ def set_progress(state, message, context, **kw):
         job = jobtool.get_job_by_id(kw['_jobid'])
     else:
         jt = IJobTracker(kw['_context'])
-        job = jobtool.get_job()
+        job = jt.get_job()
     jobtool.set_progress(job, state, message)
     if state in ('COMPLETED', 'FAILED'):
         jobtool.set_state(job, state)
