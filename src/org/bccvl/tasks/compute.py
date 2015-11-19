@@ -6,6 +6,7 @@ from decimal import Decimal
 import subprocess
 import os
 import os.path
+import glob
 import shutil
 import tempfile
 import socket
@@ -19,6 +20,9 @@ from org.bccvl.tasks.utils import build_source, build_destination
 from org.bccvl.tasks import datamover
 from celery.utils.log import get_task_logger
 from multiprocessing.pool import Pool
+from csv import DictReader
+from decimal import Decimal, InvalidOperation
+
 
 
 LOG = get_task_logger(__name__)
@@ -381,7 +385,7 @@ def reproject_to_webmercator(params, context):
     # TO-DO: Catch an exception if there isn't a .tif output file
     srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
     # Fetch the original projection
-    import glob
+
     srcfile = [x for x in glob.iglob(os.path.join(srcpath,
                                                   'proj_current', '*.tif'))
                if 'Clamping' not in x][0]
@@ -437,7 +441,6 @@ def transfer_afileout(params, context):
     # TO-DO: Catch an exception if there isn't a .tif output file
     # Fetch a tiff file that isn't a clamping mask
     move_tasks = []
-    import glob
     srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'],
                                                   'demoSDM',
                                                   'proj_current', '*.png'))
@@ -451,24 +454,44 @@ def transfer_afileout(params, context):
 
 def transfer_outputs(params, context):
     move_tasks = []
+
+    # Add result files
+    file_outputmap = params['result']['outputs'].get('files', {})
     for fpath in os.listdir(params['env']['outputdir']):
         srcpath = os.path.join(params['env']['outputdir'], fpath)
         destpath = os.path.join(params['result']['results_dir'], fpath)
-        filect, filefound = get_content_type(srcpath, params['result']['outputs'])
-        if filefound:
-            move_tasks.append(('file://' + srcpath, destpath, filect))
+        includefile, fileinfo = get_file_info(srcpath, file_outputmap)
+        if includefile:
+            move_tasks.append(('file://' + srcpath, destpath, fileinfo))
+
 
     # add job script to outputs
     srcpath = os.path.join(params['env']['scriptdir'],
                           params['worker']['script']['name'])
     destpath = os.path.join(params['result']['results_dir'],
                             params['worker']['script']['name'])
+    includefile, fileinfo = get_file_info(srcpath, file_outputmap)
+    if includefile:
+        move_tasks.append(('file://' + srcpath, destpath, fileinfo))
 
-    # Moving local output file
-    filect = get_content_type(srcpath)
-    if filect:
-        move_tasks.append(('file://' + srcpath, destpath, filect))
-    # call move task directly, to run it in process
+    # create archives
+    path = params['env']['outputdir']
+    archive_outputmap = params['result']['outputs'].get('archives', {})
+    for archname, archdef in archive_outputmap.items():
+        farchname = os.path.join(path, archname)
+        empty = True
+        with ZipFile(farchname, 'w', ZIP_DEFLATED) as zipf:
+            for fileglob in archdef['files']:
+                absglob = os.path.join(path, fileglob)
+                for fname in glob.glob(absglob):
+                    empty = False
+                    zipf.write(fname, os.path.relpath(fname, path))
+        # Only include non-empty achieve
+        if not empty:
+            includefile, fileinfo = get_file_info(srcpath, archive_outputmap)
+            if includefile:
+                move_tasks.append(('file://' + srcpath, destpath, fileinfo))
+
 
     # Upload output out to destination specified i.e. swift store
     tp = Pool(3)
@@ -477,7 +500,7 @@ def transfer_outputs(params, context):
     tp.join()
 
     # Store metadata for suceessful upload file
-    params['results_metadata'] = dict[md for md, success in result if success]
+    params['results_metadata'] = dict([mdinfo for mdinfo, success in result if success])
 
 def get_move_args(file_descr, params, context):
     #
@@ -578,31 +601,26 @@ def download_input(args):
     return (key, True)
 
 def upload_outputs(args):
-    src, dest, filect = args[0]
+    src, dest, fileinfo = args[0]
 
     try:
         # set up the source and destination  
-        source = {'url': src}
-        destination = {'url': dest}
-
-        # Create a cookies for http upload
-        durl = urlparse(dest)
-        # To do: get from config
-        if durl.scheme == 'swift':
-            destination['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
-            destination['user'] = 'username@griffith.edu.au'
-            destination['key'] = 'password'
-            destination['os_tenant_name'] = 'pt-12345'
-            destination['auth_version'] = '2'
+        source = build_source(src)
+        destination = build_destination(dest)
 
         # Upload the file and then generate metadata 
         move(source, destination)
-        md = extract_metadata(src, filect)
+        md = extract_metadata(src, fileinfo.get('mimetype'))
+
+        thresholds = None
+        if fileinfo.get('genre') == 'DataGenreSDMEval' and fileinfo.get('mimetype') == 'text/csv':
+            thresholds = extractThresholdValues(urlparse(src).path)
+            
         LOG.info('Upload from %s to %s succeeded.', src, dest)
-        return ((dest, md), True)
+        return ((dest, {'metadata': md, 'fileinfo': fileinfo, 'thresholds': thresholds}), True)
     except Exception:
         LOG.info('Upload from %s to %s failed', src, dest)
-        return ((dest, ''), False)
+        return ((dest, {'metadata': {}}, 'fileinfo': fileinfo, 'thresholds': None}), False)
 
 def extract_metadata(filepath, filect):
     from .mdextractor import MetadataExtractor
@@ -614,14 +632,73 @@ def extract_metadata(filepath, filect):
         LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
         raise
 
-def get_content_type(filepath, outputmap):
-    # Get the content type
+def get_file_info(filepath, outputmap):
+    # Get the file info
+    path = os.path.dirname(filepath)
+
     # sort list of globs with longest first:
-    globlist = sorted(self.outputmap.get('files', {}).items(),
+    globlist = sorted(outputmap.items(),
                       key=lambda item: (-len(item[0]), item[0]))
     for fileglob, filedef in globlist:
-        if filepath in glob.glob(os.path.join(os.path.dirname(filepath), fileglob)):
+        if filepath in glob.glob(os.path.join(path, fileglob)):
             if not filedef.get('skip', False):
-                # Import file only if it is not marked 'skip' = True
-                return filedef.get('mimetype')
-    return None
+                # Include file only if it is not marked 'skip' = True
+                return True, {'mimetype': filedef.get('mimetype'), 'genre': filedef.get('genre'), 'title': filedef.get('title')}
+            return False, {}  # Ignore this file
+    return False, {}  # File not found
+
+def extractThresholdValues(fname):
+    # parse csv file and add threshold values as dict
+    # this method might be called multiple times for one item
+
+    # There are various formats:
+    #   combined.modelEvaluation: Threshold Name, Testing.data, Cutoff,
+    #                             Sensitivity, Specificity
+    #   biomod2.modelEvaluation: Threshold Name, Testing.data, Cutoff.*,
+    #                            Sensitivity.*, Specificity.*
+    #   maxentResults.csv: Species,<various columns with interesting values>
+    #                <threshold name><space><cumulative threshold,
+    #                              logistic threshold,area,training omission>
+    # FIXME: this is really ugly and csv format detection should be done
+    #        differently
+    thresholds = {}
+    if fname.endswith('maxentResults.csv'):
+        csvfile = open(fname, 'r')
+        dictreader = DictReader(csvfile)
+        row = dictreader.next()
+        # There is only one row in maxentResults
+        namelist = (
+            'Fixed cumulative value 1', 'Fixed cumulative value 5',
+            'Fixed cumulative value 10', 'Minimum training presence',
+            '10 percentile training presence',
+            '10 percentile training presence',
+            'Equal training sensitivity and specificity',
+            'Maximum training sensitivity plus specificity',
+            'Balance training omission, predicted area and threshold value',
+            'Equate entropy of thresholded and original distributions')
+        for name in namelist:
+            # We extract only 'cumulative threshold'' values
+            threshold = '{} cumulative threshold'.format(name)
+            thresholds[threshold] = Decimal(row[threshold])
+    else:
+        # assume it's one of our biomod/dismo results
+        csvfile = open(fname, 'r')
+        dictreader = DictReader(csvfile)
+        # search the field with Cutoff
+        name = 'Cutoff'
+        for fieldname in dictreader.fieldnames:
+            if fieldname.startswith('Cutoff.'):
+                name = fieldname
+                break
+        try:
+            for row in dictreader:
+                try:
+                    thresholds[row['']] = Decimal(row[name])
+                except (TypeError, InvalidOperation) as e:
+                    LOG.warn("Couldn't parse threshold value '%s' (%s) from"
+                             "file '%s': %s",
+                             name, row[name], fname, repr(e))
+        except KeyError:
+            LOG.warn("Couldn't extract Threshold '%s' from file '%s'",
+                     name, fname)
+    return thresholds
