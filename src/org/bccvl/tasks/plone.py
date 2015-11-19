@@ -230,7 +230,8 @@ def import_result(params, context, **kw):
     transmogrifier = Transmogrifier(kw['_context'])
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': results_folder,
-                                 'outputmap': params['result']['outputs']})
+                                 'outputmap': params['result']['outputs'].
+                                 'outputmd': params['result']['results_metadata']})
 
 
 # TODO: this task is not allowed to fail

@@ -11,12 +11,14 @@ import tempfile
 import socket
 import resource
 from zipfile import ZipFile, ZIP_DEFLATED
+from urlparse import urlparse
 
 from org.bccvl.tasks.celery import app
-
+from org.bccvl.movelib import move
+from org.bccvl.tasks.utils import build_source, build_destination
 from org.bccvl.tasks import datamover
 from celery.utils.log import get_task_logger
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import Pool
 
 
 LOG = get_task_logger(__name__)
@@ -318,9 +320,10 @@ def transfer_inputs(params, context):
                 # we have this file already, so copy it's destination
                 ip['filename'] = move_tasks[ip['uuid']]['filename']
                 continue
+
             move_tasks[ip['uuid']] = get_move_args(ip, params, context)
 
-    tp = ThreadPool(3)
+    tp = Pool(3)
     result = tp.map(download_input, move_tasks.items())
     tp.close()
     tp.join()
@@ -329,11 +332,6 @@ def transfer_inputs(params, context):
         # iterate over all successful downloads
         # and remove from job list for data_mover
         del move_tasks[key]
-    if move_tasks:
-        # still some jobs left?
-        # all move_tasks collected; call move task directly (don't send to queue)
-        datamover.move([task['args'] for task in move_tasks.values()],
-                       context)
 
     # all data successfully transferred
     # unpack all zip files and update filenames to local files
@@ -454,26 +452,32 @@ def transfer_afileout(params, context):
 def transfer_outputs(params, context):
     move_tasks = []
     for fpath in os.listdir(params['env']['outputdir']):
-        srcpath = os.path.join(params['env']['outputdir'],
-                               fpath)
-        destpath = os.path.join(params['result']['results_dir'],
-                                fpath)
-        move_tasks.append((
-            'scp://bccvl@' + get_public_ip() + srcpath,
-            destpath)
-        )
+        srcpath = os.path.join(params['env']['outputdir'], fpath)
+        destpath = os.path.join(params['result']['results_dir'], fpath)
+        filect, filefound = get_content_type(srcpath, params['result']['outputs'])
+        if filefound:
+            move_tasks.append(('file://' + srcpath, destpath, filect))
+
     # add job script to outputs
     srcpath = os.path.join(params['env']['scriptdir'],
                           params['worker']['script']['name'])
     destpath = os.path.join(params['result']['results_dir'],
                             params['worker']['script']['name'])
-    move_tasks.append((
-        'scp://bccvl@' + get_public_ip() + srcpath,
-        destpath)
-    )
-    # call move task directly, to run it in process
-    datamover.move(move_tasks, context)
 
+    # Moving local output file
+    filect = get_content_type(srcpath)
+    if filect:
+        move_tasks.append(('file://' + srcpath, destpath, filect))
+    # call move task directly, to run it in process
+
+    # Upload output out to destination specified i.e. swift store
+    tp = Pool(3)
+    result = tp.map(upload_outputs, move_tasks.items())
+    tp.close()
+    tp.join()
+
+    # Store metadata for suceessful upload file
+    params['results_metadata'] = dict[md for md, success in result if success]
 
 def get_move_args(file_descr, params, context):
     #
@@ -481,8 +485,7 @@ def get_move_args(file_descr, params, context):
     # may be identical for different downloads)
     inputdir = os.path.join(params['env']['inputdir'], file_descr['uuid'])
     os.mkdir(inputdir)
-    src = file_descr['internalurl']
-    from urlparse import urlparse
+    src = file_descr['downloadurl']
     parsedurl = urlparse(src)
     # If it's an ala download for DemoSDM, pass ala url with no filename
     if parsedurl.scheme == 'ala':
@@ -493,9 +496,10 @@ def get_move_args(file_descr, params, context):
         # update params with local filename
         destfile = os.path.join(inputdir, file_descr['filename'])
         dest = 'scp://bccvl@' + get_public_ip() + destfile
-        file_descr['filename'] = destfile
+        file_descr['filename'] = 'file://' + destfile
     return {'args': (src, dest),
-            'filename': destfile}
+            'filename': destfile,
+            'userid': context['user'].get('id')}
 
 
 def get_public_ip():
@@ -557,15 +561,67 @@ def writerusage(rusage, params):
 
 
 def download_input(args):
-    from urllib import urlretrieve
     key, args = args
     src = args['args'][0]
     destpath = args['filename']
+
     try:
-        filename, info = urlretrieve(src, destpath)
+        # set up the source and destination  
+        source = build_source(src, args['secret'], args['userid'])
+        destination = build_destination(dest)
+
+        move(source, destination)
     except Exception:
-        LOG.info('Download from %s to %s failed - trying data_mover next',
-                 src, destpath)
+        LOG.info('Download from %s to %s failed', src, destpath)
         return (key, False)
     LOG.info('Download from %s to %s succeeded.', src, destpath)
     return (key, True)
+
+def upload_outputs(args):
+    src, dest, filect = args[0]
+
+    try:
+        # set up the source and destination  
+        source = {'url': src}
+        destination = {'url': dest}
+
+        # Create a cookies for http upload
+        durl = urlparse(dest)
+        # To do: get from config
+        if durl.scheme == 'swift':
+            destination['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
+            destination['user'] = 'username@griffith.edu.au'
+            destination['key'] = 'password'
+            destination['os_tenant_name'] = 'pt-12345'
+            destination['auth_version'] = '2'
+
+        # Upload the file and then generate metadata 
+        move(source, destination)
+        md = extract_metadata(src, filect)
+        LOG.info('Upload from %s to %s succeeded.', src, dest)
+        return ((dest, md), True)
+    except Exception:
+        LOG.info('Upload from %s to %s failed', src, dest)
+        return ((dest, ''), False)
+
+def extract_metadata(filepath, filect):
+    from .mdextractor import MetadataExtractor
+    mdextractor = MetadataExtractor()
+
+    try:
+        return mdextractor.from_file(filepath, filect)
+    except Exception as ex:
+        LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
+        raise
+
+def get_content_type(filepath, outputmap):
+    # Get the content type
+    # sort list of globs with longest first:
+    globlist = sorted(self.outputmap.get('files', {}).items(),
+                      key=lambda item: (-len(item[0]), item[0]))
+    for fileglob, filedef in globlist:
+        if filepath in glob.glob(os.path.join(os.path.dirname(filepath), fileglob)):
+            if not filedef.get('skip', False):
+                # Import file only if it is not marked 'skip' = True
+                return filedef.get('mimetype')
+    return None

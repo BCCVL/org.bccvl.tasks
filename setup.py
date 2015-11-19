@@ -30,6 +30,7 @@ setup(
         'requests',
         'requests-oauthlib',
         'backports.ssl_match_hostname',
+        'org.bccvl.movelib'
     ],
     extras_require={
         'bccvl': [
