@@ -430,10 +430,7 @@ def write_status_to_nectar(params, context, status):
                                  'jobid': context['jobid']}, indent=4))
 
     destpath = os.path.join(params['result']['results_dir'], 'state.json')
-    move_tasks.append((
-            'scp://bccvl@' + get_public_ip() + srcpath,
-            destpath)
-        )
+    move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
 
 
@@ -446,10 +443,7 @@ def transfer_afileout(params, context):
                                                   'proj_current', '*.png'))
                if 'Clamping' not in x][0]
     destpath = os.path.join(params['result']['results_dir'], 'projection.png')
-    move_tasks.append((
-            'scp://bccvl@' + get_public_ip() + srcpath,
-            destpath)
-        )
+    move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
 
 def transfer_outputs(params, context):
@@ -513,12 +507,12 @@ def get_move_args(file_descr, params, context):
     # If it's an ala download for DemoSDM, pass ala url with no filename
     if parsedurl.scheme == 'ala':
         destfile = inputdir
-        dest = 'scp://bccvl@' + get_public_ip() + destfile
+        dest = 'file://' + destfile
         file_descr['filename'] = os.path.join(inputdir, 'ala_occurrence.csv')
     else:
         # update params with local filename
         destfile = os.path.join(inputdir, file_descr['filename'])
-        dest = 'scp://bccvl@' + get_public_ip() + destfile
+        dest = 'file://' + destfile
         file_descr['filename'] = 'file://' + destfile
     return {'args': (src, dest),
             'filename': destfile,
@@ -615,7 +609,7 @@ def upload_outputs(args):
         thresholds = None
         if fileinfo.get('genre') == 'DataGenreSDMEval' and fileinfo.get('mimetype') == 'text/csv':
             thresholds = extractThresholdValues(urlparse(src).path)
-            
+
         LOG.info('Upload from %s to %s succeeded.', src, dest)
         return ((dest, {'metadata': md, 'fileinfo': fileinfo, 'thresholds': thresholds}), True)
     except Exception:
