@@ -583,7 +583,7 @@ def download_input(args):
     destpath = args['filename']
 
     try:
-        # set up the source and destination  
+        # set up the source and destination
         source = build_source(src, args['secret'], args['userid'])
         destination = build_destination(dest)
 
@@ -598,11 +598,11 @@ def upload_outputs(args):
     src, dest, fileinfo = args[0]
 
     try:
-        # set up the source and destination  
+        # set up the source and destination
         source = build_source(src)
         destination = build_destination(dest)
 
-        # Upload the file and then generate metadata 
+        # Upload the file and then generate metadata
         move(source, destination)
         md = extract_metadata(src, fileinfo.get('mimetype'))
 
@@ -614,7 +614,7 @@ def upload_outputs(args):
         return ((dest, {'metadata': md, 'fileinfo': fileinfo, 'thresholds': thresholds}), True)
     except Exception:
         LOG.info('Upload from %s to %s failed', src, dest)
-        return ((dest, {'metadata': {}}, 'fileinfo': fileinfo, 'thresholds': None}), False)
+        return (dest, {'metadata': {}, 'fileinfo': fileinfo, 'thresholds': None}, False)
 
 def extract_metadata(filepath, filect):
     from .mdextractor import MetadataExtractor
