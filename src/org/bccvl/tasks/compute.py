@@ -1,28 +1,28 @@
 from __future__ import absolute_import
 
-from pkg_resources import resource_string
+from csv import DictReader
+from decimal import Decimal, InvalidOperation
+import glob
 import json
-from decimal import Decimal
+from multiprocessing.pool import Pool
+#from multiprocessing.pool import ThreadPool as Pool
 import subprocess
 import os
 import os.path
-import glob
-import shutil
-import tempfile
-import socket
+from pkg_resources import resource_string
 import resource
+import shutil
+import socket
+import tempfile
+from urlparse import urlsplit
 from zipfile import ZipFile, ZIP_DEFLATED
-from urlparse import urlparse
 
-from org.bccvl.tasks.celery import app
-from org.bccvl.movelib import move
-from org.bccvl.tasks.utils import build_source, build_destination
-from org.bccvl.tasks import datamover
 from celery.utils.log import get_task_logger
-from multiprocessing.pool import Pool
-from csv import DictReader
-from decimal import Decimal, InvalidOperation
 
+from org.bccvl.movelib import move
+from org.bccvl.tasks import datamover
+from org.bccvl.tasks.celery import app
+from org.bccvl.tasks.utils import build_source, build_destination
 
 
 LOG = get_task_logger(__name__)
@@ -30,7 +30,7 @@ LOG = get_task_logger(__name__)
 
 def set_progress(state, statusmsg, context):
     app.send_task("org.bccvl.tasks.plone.set_progress",
-                      args=(state, statusmsg, context))
+                  args=(state, statusmsg, context))
 
 
 def set_progress_job(state, statusmsg, context):
@@ -199,7 +199,6 @@ def run_script(wrapper, params, context):
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
     try:
-
         errmsg = 'Fail to transfer/import data'
         set_progress('RUNNING', 'Transferring data', context)
 
@@ -328,14 +327,9 @@ def transfer_inputs(params, context):
             move_tasks[ip['uuid']] = get_move_args(ip, params, context)
 
     tp = Pool(3)
-    result = tp.map(download_input, move_tasks.items())
+    tp.map(download_input, move_tasks.values())
     tp.close()
     tp.join()
-
-    for key in (k for k, success in result if success):
-        # iterate over all successful downloads
-        # and remove from job list for data_mover
-        del move_tasks[key]
 
     # all data successfully transferred
     # unpack all zip files and update filenames to local files
@@ -503,9 +497,10 @@ def get_move_args(file_descr, params, context):
     inputdir = os.path.join(params['env']['inputdir'], file_descr['uuid'])
     os.mkdir(inputdir)
     src = file_descr['downloadurl']
-    parsedurl = urlparse(src)
+    parsedurl = urlsplit(src)
     # If it's an ala download for DemoSDM, pass ala url with no filename
     if parsedurl.scheme == 'ala':
+        # FIXME: does this really work?, do we have a uuid for direkt ala downloads?
         destfile = inputdir
         dest = 'file://' + destfile
         file_descr['filename'] = os.path.join(inputdir, 'ala_occurrence.csv')
@@ -513,7 +508,7 @@ def get_move_args(file_descr, params, context):
         # update params with local filename
         destfile = os.path.join(inputdir, file_descr['filename'])
         dest = 'file://' + destfile
-        file_descr['filename'] = 'file://' + destfile
+        file_descr['filename'] = destfile
     return {'args': (src, dest),
             'filename': destfile,
             'userid': context['user'].get('id')}
@@ -577,22 +572,18 @@ def writerusage(rusage, params):
     # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
 
 
-def download_input(args):
-    key, args = args
-    src = args['args'][0]
-    destpath = args['filename']
-
+def download_input(move_args):
+    src, dst = move_args['args']
     try:
         # set up the source and destination
-        source = build_source(src, args['secret'], args['userid'])
-        destination = build_destination(dest)
-
+        source = build_source(src, move_args['userid'], app.conf.get('bccvl', {}))
+        destination = build_destination(dst)
         move(source, destination)
-    except Exception:
-        LOG.info('Download from %s to %s failed', src, destpath)
-        return (key, False)
-    LOG.info('Download from %s to %s succeeded.', src, destpath)
-    return (key, True)
+    except Exception as e:
+        LOG.info('Download from %s to %s failed: %s', src, dst, e)
+        raise
+    LOG.info('Download from %s to %s succeeded.', src, dst)
+
 
 def upload_outputs(args):
     src, dest, fileinfo = args[0]
@@ -608,7 +599,7 @@ def upload_outputs(args):
 
         thresholds = None
         if fileinfo.get('genre') == 'DataGenreSDMEval' and fileinfo.get('mimetype') == 'text/csv':
-            thresholds = extractThresholdValues(urlparse(src).path)
+            thresholds = extractThresholdValues(urlsplit(src).path)
 
         LOG.info('Upload from %s to %s succeeded.', src, dest)
         return ((dest, {'metadata': md, 'fileinfo': fileinfo, 'thresholds': thresholds}), True)

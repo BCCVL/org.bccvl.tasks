@@ -57,7 +57,8 @@ def parse_celery_config(jsonconfig):
             if key in jsonconfig:
                 # config[key] = value.to_python(jsonconfig[key])
                 config[key] = jsonconfig[key]
-
+    # include bccvl specific config options here
+    config['bccvl'] = jsonconfig.get('bccvl', {})
     return config
 
 

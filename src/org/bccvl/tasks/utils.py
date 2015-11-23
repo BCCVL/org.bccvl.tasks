@@ -2,6 +2,8 @@ from time import time
 import socket
 import struct
 import hashlib
+from urlparse import urlsplit
+
 
 class AuthTkt(object):
     def __init__(self, secret, uid, data='', ip='0.0.0.0', tokens=(),
@@ -51,37 +53,34 @@ class AuthTkt(object):
     def _encode_ts(self, ts):
         return struct.pack('!I', ts)
 
-def get_cookies(secret, userid):
-    ticket = AuthTkt(secret, userid)
-    return dict(
-        version=0,
-        name='__ac',
-        value=ticket.ticket(),
-        port=None,
-        domain='',
-        path='/',
-        secure=False,
-        expires=None,
-        discard=True,
-        comment=None,
-        comment_url=None,
-        rest={'HttpOnly': None},
-        rfc2109=False,)
 
-def build_source(src, secret=None, userid=None):
+def get_cookies(settings, userid):
+    ticket = AuthTkt(settings['secret'], userid)
+    return {
+        'name': settings['name'],
+        'value': ticket.ticket(),
+        'domain': settings['domain'],
+        'path': settings.get('path', '/'),
+        'secure': settings.get('secure', True),
+    }
+
+
+def build_source(src, userid=None, settings=None):
     source = {'url': src}
-
     # Create a cookies for http download from the plone server
-    url = urlparse(src)
+    url = urlsplit(src)
     if url.scheme in ('http', 'https'):
-        source['cookies'] = get_cookies(secret, userid)
-    elif url.scheme == 'swift':
-        source['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
-        source['user'] = 'username@griffith.edu.au'
-        source['key'] = 'password'
-        source['os_tenant_name'] = 'pt-12345'
-        source['auth_version'] = '2'
-    return source        
+        source['cookies'] = get_cookies(settings.get('cookie', {}),
+                                        userid)
+        source['verify'] = settings.get('ssl', {}).get('verify', True)
+    # elif url.scheme == 'swift':
+    #     source['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
+    #     source['user'] = 'username@griffith.edu.au'
+    #     source['key'] = 'password'
+    #     source['os_tenant_name'] = 'pt-12345'
+    #     source['auth_version'] = '2'
+    return source
+
 
 def build_destination(dest, filename=None):
     destination = {'url': dest}
@@ -89,7 +88,7 @@ def build_destination(dest, filename=None):
         destination['filename'] = filename
 
     # Create a cookies for http download from the plone server
-    url = urlparse(dest)
+    url = urlsplit(dest)
     if url.scheme == 'swift':
         destination['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
         destination['user'] = 'username@griffith.edu.au'
