@@ -47,7 +47,7 @@ def parse_celery_config(jsonconfig):
             for subkey, option in value.items():
                 if subkey in jsonconfig[key]:
                     confkey = '{0}_{1}'.format(key, subkey)
-                    # TODO: there is a bug in celery config where to_ptyhon
+                    # TODO: there is a bug in celery config where to_python
                     #       for type='list' fails. however, json should just
                     #       parse fine
                     #confval = option.to_python(jsonconfig[key][subkey])
