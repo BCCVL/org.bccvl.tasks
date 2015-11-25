@@ -68,6 +68,7 @@ def after_commit_task(task, *args, **kw):
     transaction.get().addAfterCommitHook(hook)
 
 
+# TODO: use celery retry in case of a more severe error
 def zope_task(**task_kw):
     """Decorator of celery tasks that should be run in a Zope context.
 
@@ -215,23 +216,24 @@ def import_cleanup(path, context, **kw):
     # FIXME: may throw exception ...
     #        just catch all exceptions ... log an error and continue as if nothing happened
     path = urlparse(path).path
-    shutil.rmtree(path)
+    if os.path.exists(path):
+        shutil.rmtree(path)
     LOG.info("cleanup ala %s to %s", path, context)
 
 
 # TODO: maybe do cleanup here? and get rid of above task?
 @zope_task()
-def import_result(params, context, **kw):
+def import_result(items, params, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    results_folder = urlparse(params['result']['results_dir']).path
+    results_folder = params['result']['results_dir']
     LOG.info("import results %s to %s", results_folder, context)
     transmogrifier = Transmogrifier(kw['_context'])
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': results_folder,
-                                 'outputmap': params['result']['outputs'],
-                                 'outputmd': params['result']['results_metadata']})
+                                 'items': items,
+                                 'outputmap': params['result']['outputs']})
 
 
 # TODO: this task is not allowed to fail
