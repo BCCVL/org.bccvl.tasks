@@ -73,26 +73,26 @@ def build_source(src, userid=None, settings=None):
         source['cookies'] = get_cookies(settings.get('cookie', {}),
                                         userid)
         source['verify'] = settings.get('ssl', {}).get('verify', True)
-    # elif url.scheme == 'swift':
-    #     source['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
-    #     source['user'] = 'username@griffith.edu.au'
-    #     source['key'] = 'password'
-    #     source['os_tenant_name'] = 'pt-12345'
-    #     source['auth_version'] = '2'
+    elif url.scheme in ('swift+http', 'swift+https'):
+        # TODO: should check swift host name as well
+        swift_settings = settings and settings.get('swift', {}) or {}
+        for key in ('os_auth_url', 'os_username', 'os_password', 'os_tenant_name'):
+            if key not in swift_settings:
+                continue
+            source[key] = swift_settings[key]
     return source
 
 
-def build_destination(dest, filename=None):
+def build_destination(dest, settings=None):
     destination = {'url': dest}
-    if filename:
-        destination['filename'] = filename
 
     # Create a cookies for http download from the plone server
     url = urlsplit(dest)
-    if url.scheme == 'swift':
-        destination['auth'] = 'https://keystone.rc.nectar.org.au:5000/v2.0/'
-        destination['user'] = 'username@griffith.edu.au'
-        destination['key'] = 'password'
-        destination['os_tenant_name'] = 'pt-12345'
-        destination['auth_version'] = '2'
+    if url.scheme in ('swift+http', 'swift+https'):
+        # TODO: should check swift host name as well
+        swift_settings = settings and settings.get('swift', {}) or {}
+        for key in ('os_auth_url', 'os_username', 'os_password', 'os_tenant_name'):
+            if key not in swift_settings:
+                continue
+            destination[key] = swift_settings[key]
     return destination

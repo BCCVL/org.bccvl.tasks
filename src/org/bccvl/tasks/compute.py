@@ -6,10 +6,12 @@ import glob
 import json
 from multiprocessing.pool import Pool
 #from multiprocessing.pool import ThreadPool as Pool
+import mimetypes
 import subprocess
 import os
 import os.path
 from pkg_resources import resource_string
+import re
 import resource
 import shutil
 import socket
@@ -39,9 +41,9 @@ def set_progress_job(state, statusmsg, context):
                          immutable=True)
 
 
-def import_result_job(params, context):
+def import_result_job(items, params, context):
     return app.signature("org.bccvl.tasks.plone.import_result",
-                         args=(params, context),
+                         args=(items, params, context),
                          immutable=True)
 
 
@@ -198,6 +200,7 @@ def run_script(wrapper, params, context):
     #       need to communicate it properly back to the user.
     # TODO: however, we can't really do anything in case sending
     #       messages doesn't work.
+    items = []
     try:
         errmsg = 'Fail to transfer/import data'
         set_progress('RUNNING', 'Transferring data', context)
@@ -231,21 +234,25 @@ def run_script(wrapper, params, context):
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
+        # TODO: should we write this as json file and send as result back
+        #       or just send rusage with finished message?
         writerusage(rusage, params)
         # TODO: check whether ret and proc.returncode are the same
 
         # move results back
         errmsg = 'Fail to transfer results back'
         set_progress('RUNNING', 'Transferring outputs', context)
-        transfer_outputs(params, context)
+        # TODO: maybe redesign this?
+        #       transfer only uploads to destination and stores new url somewhere
+        #       and we do metadata extraction and item creation afterwards (here)?
+        items = transfer_outputs(params, context)
 
         # we are done here, hand over to result importer
         # build a chain of the remaining tasks
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
         cleanup_job = import_cleanup_job(params, context)
-
-        import_job = import_result_job(params, context)
+        import_job = import_result_job(items, params, context)
         import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
         import_job.link_error(cleanup_job)
 
@@ -275,7 +282,7 @@ def run_script(wrapper, params, context):
 
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
-        import_job = import_result_job(params, context)
+        import_job = import_result_job(items, params, context)
         import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
 
         finish_job = set_progress_job('FAILED', errmsg, context)
@@ -357,6 +364,7 @@ def transfer_inputs(params, context):
                 extractpath = os.path.dirname(ip['filename'])
                 zipf.extractall(extractpath)
             # if it's not a zip, then there is nothing to do
+    # TODO: remove no longer needed zip files?
 
 
 def create_scripts(params, context):
@@ -441,54 +449,67 @@ def transfer_afileout(params, context):
     datamover.move(move_tasks, context)
 
 def transfer_outputs(params, context):
-    move_tasks = []
-
-    # Add result files
-    file_outputmap = params['result']['outputs'].get('files', {})
-    for fpath in os.listdir(params['env']['outputdir']):
-        srcpath = os.path.join(params['env']['outputdir'], fpath)
-        destpath = os.path.join(params['result']['results_dir'], fpath)
-        includefile, fileinfo = get_file_info(srcpath, file_outputmap)
-        if includefile:
-            move_tasks.append(('file://' + srcpath, destpath, fileinfo))
-
-
-    # add job script to outputs
-    srcpath = os.path.join(params['env']['scriptdir'],
-                          params['worker']['script']['name'])
-    destpath = os.path.join(params['result']['results_dir'],
-                            params['worker']['script']['name'])
-    includefile, fileinfo = get_file_info(srcpath, file_outputmap)
-    if includefile:
-        move_tasks.append(('file://' + srcpath, destpath, fileinfo))
-
-    # create archives
-    path = params['env']['outputdir']
-    archive_outputmap = params['result']['outputs'].get('archives', {})
-    for archname, archdef in archive_outputmap.items():
-        farchname = os.path.join(path, archname)
+    # items to import
+    items = []
+    # build collection of all output files
+    filelist = set()
+    out_dir = params['env']['outputdir']
+    for root, dirs, files in os.walk(out_dir):
+        for name in files:
+            filelist.add(os.path.join(out_dir,
+                                      root, name))
+    # match files in output map (sorted by length of glob)
+    globlist = sorted(params['result']['outputs'].get('files', {}).items(),
+                      key=lambda item: (-len(item[0]), item[0]))
+    # go through list of globs from outputmap
+    for fileglob, filedef in globlist:
+        # match globs
+        for fname in glob.glob(os.path.join(out_dir, fileglob)):
+            if fname in filelist:
+                # generate metadat, upload file and collect import infos
+                # we import only if not marked as 'skip' and and not done already
+                if not filedef.get('skip', False):
+                    items.append(createItem(fname, filedef, params['params']))
+            filelist.discard(fname)
+    # check archives in outputmap
+    for archname, archdef in params['result']['outputs'].get('archives', {}).items():
+        # create archive
+        farchname = os.path.join(out_dir, archname)
+        # check if we have added any files
         empty = True
         with ZipFile(farchname, 'w', ZIP_DEFLATED) as zipf:
+            # files to add
             for fileglob in archdef['files']:
-                absglob = os.path.join(path, fileglob)
+                absglob = os.path.join(out_dir, fileglob)
                 for fname in glob.glob(absglob):
                     empty = False
-                    zipf.write(fname, os.path.relpath(fname, path))
-        # Only include non-empty achieve
+                    zipf.write(fname, os.path.relpath(fname, out_dir))
+                    # discrad all archived files from filelist
+                    filelist.discard(fname)
+        # create item to import for archive
         if not empty:
-            includefile, fileinfo = get_file_info(srcpath, archive_outputmap)
-            if includefile:
-                move_tasks.append(('file://' + srcpath, destpath, fileinfo))
-
+            items.append(createItem(farchname, archdef, params['params']))
+    # still some files left in out_dir?
+    for fname in filelist:
+        LOG.info('Importing undefined item %s', fname)
+        items.append(createItem(fname, {}, params['params']))
+    # TODO: upload each item and send import job for each item
+    move_tasks = []
+    # build move_tasks
+    for item in items:
+        src = item['file']['url']
+        dst = os.path.join(params['result']['results_dir'],
+                           item['file']['filename'])
+        item['file']['url'] = dst  # update destination with filename
+        move_tasks.append((src, dst, item))
 
     # Upload output out to destination specified i.e. swift store
     tp = Pool(3)
-    result = tp.map(upload_outputs, move_tasks.items())
+    tp.map(upload_outputs, move_tasks)
     tp.close()
     tp.join()
-
     # Store metadata for suceessful upload file
-    params['results_metadata'] = dict([mdinfo for mdinfo, success in result if success])
+    return items
 
 def get_move_args(file_descr, params, context):
     #
@@ -586,26 +607,22 @@ def download_input(move_args):
 
 
 def upload_outputs(args):
-    src, dest, fileinfo = args[0]
+    src, dest, item = args
 
     try:
         # set up the source and destination
         source = build_source(src)
-        destination = build_destination(dest)
+        # TODO: add content_type to destination? (move_lib supports it)
+        destination = build_destination(dest, app.conf.get('bccvl', {}))
 
         # Upload the file and then generate metadata
         move(source, destination)
-        md = extract_metadata(src, fileinfo.get('mimetype'))
-
-        thresholds = None
-        if fileinfo.get('genre') == 'DataGenreSDMEval' and fileinfo.get('mimetype') == 'text/csv':
-            thresholds = extractThresholdValues(urlsplit(src).path)
-
         LOG.info('Upload from %s to %s succeeded.', src, dest)
-        return ((dest, {'metadata': md, 'fileinfo': fileinfo, 'thresholds': thresholds}), True)
+        item['file']['failed'] = False
     except Exception:
         LOG.info('Upload from %s to %s failed', src, dest)
-        return (dest, {'metadata': {}, 'fileinfo': fileinfo, 'thresholds': None}, False)
+        item['file']['failed'] = True
+
 
 def extract_metadata(filepath, filect):
     from .mdextractor import MetadataExtractor
@@ -617,20 +634,60 @@ def extract_metadata(filepath, filect):
         LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
         raise
 
-def get_file_info(filepath, outputmap):
-    # Get the file info
-    path = os.path.dirname(filepath)
 
-    # sort list of globs with longest first:
-    globlist = sorted(outputmap.items(),
-                      key=lambda item: (-len(item[0]), item[0]))
-    for fileglob, filedef in globlist:
-        if filepath in glob.glob(os.path.join(path, fileglob)):
-            if not filedef.get('skip', False):
-                # Include file only if it is not marked 'skip' = True
-                return True, {'mimetype': filedef.get('mimetype'), 'genre': filedef.get('genre'), 'title': filedef.get('title')}
-            return False, {}  # Ignore this file
-    return False, {}  # File not found
+# TODO: fname -> dsturl? could use both
+def createItem(fname, info, params):
+    # fname: full path to file
+    # info: ... from outputmap
+    name = os.path.basename(fname)
+    # layermd ... metadata about raster layer
+    layermd = {}
+    # bccvlmd ... bccvl specific metadata
+    bccvlmd = {}
+    genre = info.get('genre', None)
+    if genre:
+        bccvlmd['genre'] = genre
+        if genre in ('DataGenreSDMModel', 'DataGenreCP', 'DataGenreClampingMask'):
+            if genre == 'DataGenreClampingMask':
+                layermd = {'files': {name: {'layer': 'clamping_mask', 'data_type': 'Discrete'}}}
+            elif genre == 'DataGenreCP':
+                if params['function'] in ('circles', 'convhull', 'voronoihull'):
+                    layermd = {'files': {name: {'layer': 'projection_binary', 'data_type': 'Continuous'}}}
+                elif params['function'] in ('maxent',):
+                    layermd = {'files': {name: {'layer': 'projection_suitablity', 'data_type': 'Continuous'}}}
+                else:
+                    layermd = {'files': {name: {'layer': 'projection_probability', 'data_type': 'Continuous'}}}
+            # FIXME: find a cleaner way to attach metadata
+            for key in ('year', 'month', 'emsc', 'gcm'):
+                if key in params:
+                    bccvlmd[key] = params[key]
+        elif genre == 'DataGenreSDMEval' and info.get('mimetype') == 'text/csv':
+            thresholds = extractThresholdValues(fname)
+            # FIXME: merge thresholds?
+            bccvlmd['thresholds'] = thresholds
+    # make sure we have a mimetype
+    mimetype = info.get('mimetype', None)
+    if mimetype is None:
+        mimetype = guess_mimetype(fname)
+    # extract file metadata
+    filemd = extract_metadata(fname, mimetype)
+
+    # FIXME: check keys to make sense
+    #        -> merge layermd and filemetadata?
+    #        -> merge bccvlmd and filemetadata?
+    return {
+        'file': {
+            'url': 'file://{}'.format(fname),  # local file url
+            'contenttype': mimetype,
+            'filename': name
+        },
+        'title': name,
+        'description': info.get('title', u''),
+        'bccvlmetadata': bccvlmd,
+        'filemetadata': filemd,
+        'layermd': layermd
+    }
+
 
 def extractThresholdValues(fname):
     # parse csv file and add threshold values as dict
@@ -664,7 +721,8 @@ def extractThresholdValues(fname):
         for name in namelist:
             # We extract only 'cumulative threshold'' values
             threshold = '{} cumulative threshold'.format(name)
-            thresholds[threshold] = Decimal(row[threshold])
+            #thresholds[threshold] = Decimal(row[threshold])
+            thresholds[threshold] = row[threshold]
     else:
         # assume it's one of our biomod/dismo results
         csvfile = open(fname, 'r')
@@ -679,6 +737,7 @@ def extractThresholdValues(fname):
             for row in dictreader:
                 try:
                     thresholds[row['']] = Decimal(row[name])
+                    thresholds[row['']] = row[name]
                 except (TypeError, InvalidOperation) as e:
                     LOG.warn("Couldn't parse threshold value '%s' (%s) from"
                              "file '%s': %s",
@@ -687,3 +746,16 @@ def extractThresholdValues(fname):
             LOG.warn("Couldn't extract Threshold '%s' from file '%s'",
                      name, fname)
     return thresholds
+
+
+def guess_mimetype(name):
+    # 1. try mimetype registry
+    name = os.path.basename(name)
+    mtype = None
+    if mtype is None:
+        mtype = mimetypes.guess_type(name)
+        # TODO: add mime magic here
+        # https://github.com/ahupp/python-magic/blob/master/magic.py
+        if mtype is not (None, None):
+            return mtype[0]
+    return 'application/octet-stream'

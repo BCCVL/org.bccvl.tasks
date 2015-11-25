@@ -30,7 +30,9 @@ setup(
         'requests',
         'requests-oauthlib',
         'backports.ssl_match_hostname',
-        'org.bccvl.movelib'
+        'org.bccvl.movelib[http,scp,swift]',
+        'GDAL',
+        'python-xmp-toolkit',  # requires yuminstall exempi
     ],
     extras_require={
         'bccvl': [

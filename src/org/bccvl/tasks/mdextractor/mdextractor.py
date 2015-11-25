@@ -67,6 +67,9 @@ class ZipExtractor(object):
                 # TODO: detect mime_type if possible first
                 mime, enc = mimetypes.guess_type(zipinfo.filename)
                 if mime:
+                    if mime in ('application/zip', ):
+                        # zip in zip ... don't recurse
+                        continue
                     ret[md['filename']]['metadata'] = \
                         extractor.from_archive(fileob.name, md['filename'], mime)
 
