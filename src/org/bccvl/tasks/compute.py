@@ -535,30 +535,6 @@ def get_move_args(file_descr, params, context):
             'userid': context['user'].get('id')}
 
 
-def get_public_ip():
-    # check if the environment variable EXT_IP has some useful value
-    ip = os.environ.get('EXT_IP', None)
-    if ip:
-        return ip
-    # otherwise we connect to some host, and check which local ip the socket uses
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('google.com', 80))
-        # TODO: could do name lookup with socket.gethostbyaddr('ip')[0]
-        #       or socket.getnameinfo(s.getsockname())[0]
-        #       namelookup may throw another exception?
-        return s.getsockname()[0]
-    except Exception as e:
-        LOG.warn("couldn't connect to google.com: %s", repr(e))
-    # we still have no clue, let's try it via hostname
-    try:
-        return socket.gethostbyname(socket.gethostname())
-    except Exception as e:
-        LOG.warn("couldn't resolve '%s': %s", socket.gethostname(), repr(e))
-    # last chance
-    return socket.getfqdn()
-
-
 def decimal_encoder(o):
     if isinstance(o, Decimal):
         return float(o)
