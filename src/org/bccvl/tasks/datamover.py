@@ -22,8 +22,8 @@ def move(move_args, context):
     errmsgs = []
     for src, dest in move_args:
         try:
-            source = build_source(src)
-            destination = build_destination(dest)
+            source = build_source(src, move_args.get('userid'), app.conf.get('bccvl', {}))
+            destination = build_destination(dest, app.conf.get('bccvl', {}))
             movelib.move(source, destination)
         except Exception as e:
             msg = 'Download from %s to %s failed: %s', src, dest, str(e)

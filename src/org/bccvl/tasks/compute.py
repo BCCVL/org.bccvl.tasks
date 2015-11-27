@@ -563,7 +563,7 @@ def upload_outputs(args):
     src, dest, item = args
 
     try:
-        # set up the source and destination
+        # set up the source and destination (src is a local file)
         source = build_source(src)
         # TODO: add content_type to destination? (move_lib supports it)
         destination = build_destination(dest, app.conf.get('bccvl', {}))
