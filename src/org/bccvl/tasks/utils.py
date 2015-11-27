@@ -1,9 +1,78 @@
 import Cookie
+import logging
 from time import time
 import socket
 import struct
 import hashlib
 from urlparse import urlsplit
+
+from org.bccvl.tasks.celery import app
+from org.bccvl.tasks.mdextractor import MetadataExtractor
+
+
+LOG = logging.getLogger(__name__)
+
+
+def set_progress(state, statusmsg, context):
+    app.send_task("org.bccvl.tasks.plone.set_progress",
+                  args=(state, statusmsg, context))
+
+
+def import_cleanup(results_dir, context):
+    app.send_task("org.bccvl.tasks.plone.import_cleanup",
+                  args=(results_dir, context))
+
+
+def set_progress_job(state, statusmsg, context):
+    return app.signature("org.bccvl.tasks.plone.set_progress",
+                         args=(state, statusmsg, context),
+                         immutable=True)
+
+
+def import_result_job(items, params, context):
+    return app.signature("org.bccvl.tasks.plone.import_result",
+                         args=(items, params, context),
+                         immutable=True)
+
+
+def import_file_metadata_job(items, params, context):
+    return app.signature("org.bccvl.tasks.plone.import_file_metadata",
+                         args=(items, params, context),
+                         immutable=True)
+
+
+def import_ala_job(items, params, context):
+    return app.signature("org.bccvl.tasks.plone.import_ala",
+                         args=(items, params, context),
+                         immutable=True)
+
+
+def import_cleanup_job(results_dir, context):
+    return app.signature("org.bccvl.tasks.plone.import_cleanup",
+                         args=(results_dir, context),
+                         immutable=True)
+
+
+def extract_metadata(filepath, filect):
+    mdextractor = MetadataExtractor()
+    try:
+        return mdextractor.from_file(filepath, filect)
+    except Exception as ex:
+        LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
+        raise
+
+
+def traverse_dict(source, path):
+    current = source
+    try:
+        for el in path.split('/'):
+            if isinstance(current, list):
+                el = int(el)
+            current = current[el]
+    except:
+        # TODO: at least log error?
+        current = None
+    return current
 
 
 class AuthTkt(object):
@@ -71,11 +140,13 @@ def build_source(src, userid=None, settings=None):
     # Create a cookies for http download from the plone server
     url = urlsplit(src)
     if url.scheme in ('http', 'https'):
+        # FIXME: assumes settings is not None
         source['cookies'] = get_cookies(settings.get('cookie', {}),
                                         userid)
         source['verify'] = settings.get('ssl', {}).get('verify', True)
     elif url.scheme in ('swift+http', 'swift+https'):
         # TODO: should check swift host name as well
+        # FIXWE: assumes settings is not None
         swift_settings = settings and settings.get('swift', {}) or {}
         for key in ('os_auth_url', 'os_username', 'os_password', 'os_tenant_name'):
             if key not in swift_settings:
@@ -91,6 +162,7 @@ def build_destination(dest, settings=None):
     url = urlsplit(dest)
     if url.scheme in ('swift+http', 'swift+https'):
         # TODO: should check swift host name as well
+        # FIXME: assumes settings is not None
         swift_settings = settings and settings.get('swift', {}) or {}
         for key in ('os_auth_url', 'os_username', 'os_password', 'os_tenant_name'):
             if key not in swift_settings:

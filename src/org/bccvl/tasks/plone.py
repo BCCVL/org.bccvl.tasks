@@ -195,17 +195,28 @@ def zope_task(**task_kw):
 
 # TODO: these jobs need to run near a zodb or plone instance
 @zope_task()
-def import_ala(path, lsid, context, **kw):
+def import_ala(items, results_dir, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
-    metadata_file = 'ala_dataset.json'
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    LOG.info("import ala %s to %s", path, context)
-    transmogrifier = Transmogrifier(kw['_context'].__parent__)
+    LOG.info("import ala %s to %s", results_dir, context)
+    transmogrifier = Transmogrifier(kw['_context'])
     transmogrifier(u'org.bccvl.site.alaimport',
-                   alasource={'file': os.path.join(path, metadata_file),
-                              'lsid': lsid,
-                              'id': kw['_context'].getId()})
+                   contextsource={'path': results_dir,
+                                  'items': items})
+
+
+# TODO: these jobs need to run near a zodb or plone instance
+@zope_task()
+def import_file_metadata(items, results_dir, context, **kw):
+    from collective.transmogrifier.transmogrifier import Transmogrifier
+    # transmogrifier context needs to be the parent object, in case
+    # we have to create the dataset as well
+    LOG.info("update metadata for %s,  %s", results_dir, context)
+    transmogrifier = Transmogrifier(kw['_context'])
+    transmogrifier(u'org.bccvl.site.add_file_metadata',
+                   contextsource={'path': results_dir,
+                                  'items': items})
 
 
 # TODO: this may not need a plone instance?
@@ -223,17 +234,15 @@ def import_cleanup(path, context, **kw):
 
 # TODO: maybe do cleanup here? and get rid of above task?
 @zope_task()
-def import_result(items, params, context, **kw):
+def import_result(items, results_dir, context, **kw):
     from collective.transmogrifier.transmogrifier import Transmogrifier
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
-    results_folder = params['result']['results_dir']
-    LOG.info("import results %s to %s", results_folder, context)
+    LOG.info("import results %s to %s", results_dir, context)
     transmogrifier = Transmogrifier(kw['_context'])
-    transmogrifier(u'org.bccvl.compute.resultimport',
-                   resultsource={'path': results_folder,
-                                 'items': items,
-                                 'outputmap': params['result']['outputs']})
+    transmogrifier(u'org.bccvl.site.alaimport',
+                   resultsource={'path': results_dir,
+                                 'items': items})
 
 
 # TODO: this task is not allowed to fail

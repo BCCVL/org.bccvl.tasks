@@ -7,14 +7,12 @@ import json
 import mimetypes
 #from multiprocessing.pool import Pool
 from multiprocessing.pool import ThreadPool as Pool
-import subprocess
 import os
 import os.path
 from pkg_resources import resource_string
-import re
 import resource
 import shutil
-import socket
+import subprocess
 import tempfile
 from urlparse import urlsplit
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -24,33 +22,12 @@ from celery.utils.log import get_task_logger
 from org.bccvl.movelib import move
 from org.bccvl.tasks import datamover
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks.utils import build_source, build_destination
+from org.bccvl.tasks.utils import build_source, build_destination, extract_metadata
+from org.bccvl.tasks.utils import set_progress, set_progress_job
+from org.bccvl.tasks.utils import import_result_job, import_cleanup_job
 
 
 LOG = get_task_logger(__name__)
-
-
-def set_progress(state, statusmsg, context):
-    app.send_task("org.bccvl.tasks.plone.set_progress",
-                  args=(state, statusmsg, context))
-
-
-def set_progress_job(state, statusmsg, context):
-    return app.signature("org.bccvl.tasks.plone.set_progress",
-                         args=(state, statusmsg, context),
-                         immutable=True)
-
-
-def import_result_job(items, params, context):
-    return app.signature("org.bccvl.tasks.plone.import_result",
-                         args=(items, params, context),
-                         immutable=True)
-
-
-def import_cleanup_job(params, context):
-    return app.signature("org.bccvl.tasks.plone.import_cleanup",
-                         args=(params['result']['results_dir'], context),
-                         immutable=True)
 
 
 def zip_folder(archive, folder):
@@ -251,8 +228,8 @@ def run_script(wrapper, params, context):
         # build a chain of the remaining tasks
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
-        cleanup_job = import_cleanup_job(params, context)
-        import_job = import_result_job(items, params, context)
+        cleanup_job = import_cleanup_job(params['result']['results_dir'], context)
+        import_job = import_result_job(items, params['result']['results_dir'], context)
         import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
         import_job.link_error(cleanup_job)
 
@@ -598,17 +575,6 @@ def upload_outputs(args):
     except Exception:
         LOG.info('Upload from %s to %s failed', src, dest)
         item['file']['failed'] = True
-
-
-def extract_metadata(filepath, filect):
-    from .mdextractor import MetadataExtractor
-    mdextractor = MetadataExtractor()
-
-    try:
-        return mdextractor.from_file(filepath, filect)
-    except Exception as ex:
-        LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
-        raise
 
 
 # TODO: fname -> dsturl? could use both
