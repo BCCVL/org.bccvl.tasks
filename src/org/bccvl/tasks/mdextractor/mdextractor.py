@@ -355,7 +355,7 @@ class CSVExtractor(object):
                     species.add(row[speciesidx])
 
             data['rows'] = count
-            data['species'] = species
+            data['species'] = list(species)
             data['bounds'] = bounds
 
         data.update({
