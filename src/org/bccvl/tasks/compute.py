@@ -4,9 +4,9 @@ from csv import DictReader
 from decimal import Decimal, InvalidOperation
 import glob
 import json
-from multiprocessing.pool import Pool
-#from multiprocessing.pool import ThreadPool as Pool
 import mimetypes
+#from multiprocessing.pool import Pool
+from multiprocessing.pool import ThreadPool as Pool
 import subprocess
 import os
 import os.path
