@@ -14,13 +14,13 @@ LOG = logging.getLogger(__name__)
 
 
 def set_progress(state, statusmsg, context):
-    app.send_task("org.bccvl.tasks.plone.set_progress",
-                  args=(state, statusmsg, context))
+    app.signature("org.bccvl.tasks.plone.set_progress",
+                  args=(state, statusmsg, context)).delay()
 
 
 def import_cleanup(results_dir, context):
-    app.send_task("org.bccvl.tasks.plone.import_cleanup",
-                  args=(results_dir, context))
+    app.signature("org.bccvl.tasks.plone.import_cleanup",
+                  args=(results_dir, context)).delay()
 
 
 def set_progress_job(state, statusmsg, context):
