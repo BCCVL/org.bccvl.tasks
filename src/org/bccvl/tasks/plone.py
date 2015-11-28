@@ -200,9 +200,11 @@ def import_ala(items, results_dir, context, **kw):
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
     LOG.info("import ala %s to %s", results_dir, context)
-    transmogrifier = Transmogrifier(kw['_context'])
+    # transmogrifier context needs to be the parent folder
+    transmogrifier = Transmogrifier(kw['_context'].__parent__)
     transmogrifier(u'org.bccvl.site.alaimport',
                    contextsource={'path': results_dir,
+                                  'content_id': kw['_context'].getId(),
                                   'items': items})
 
 
@@ -213,9 +215,10 @@ def import_file_metadata(items, results_dir, context, **kw):
     # transmogrifier context needs to be the parent object, in case
     # we have to create the dataset as well
     LOG.info("update metadata for %s,  %s", results_dir, context)
-    transmogrifier = Transmogrifier(kw['_context'])
+    transmogrifier = Transmogrifier(kw['_context'].__parent__)
     transmogrifier(u'org.bccvl.site.add_file_metadata',
                    contextsource={'path': results_dir,
+                                  'content_id': kw['_context'].getId(),
                                   'items': items})
 
 
@@ -240,7 +243,7 @@ def import_result(items, results_dir, context, **kw):
     # we have to create the dataset as well
     LOG.info("import results %s to %s", results_dir, context)
     transmogrifier = Transmogrifier(kw['_context'])
-    transmogrifier(u'org.bccvl.site.alaimport',
+    transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': results_dir,
                                  'items': items})
 
