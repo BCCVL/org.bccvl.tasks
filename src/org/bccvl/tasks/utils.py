@@ -125,6 +125,8 @@ class AuthTkt(object):
 
 
 def get_cookies(settings, userid):
+    if not settings.get('secret'):
+        return {}
     ticket = AuthTkt(settings['secret'], userid)
     return {
         'name': settings['name'],

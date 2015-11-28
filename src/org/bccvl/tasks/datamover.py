@@ -121,7 +121,7 @@ def update_metadata(url, filename, contenttype, context):
         tmpdir = tempfile.mkdtemp()
         tmpfile = '{}/{}'.format(tmpdir, filename)
         userid = context.get('user', {}).get('id')
-        settings = app.conf.get('bccvl')
+        settings = app.conf.get('bccvl', {})
         src = build_source(url, userid, settings)
         dst = build_destination('file://{}'.format(tmpfile), settings)
         movelib.move(src, dst)
