@@ -139,19 +139,20 @@ def build_source(src, userid=None, settings=None):
     source = {'url': src}
     # Create a cookies for http download from the plone server
     url = urlsplit(src)
+    if settings is None:
+        settings = {}
     if url.scheme in ('http', 'https'):
-        # FIXME: assumes settings is not None
-        source['cookies'] = get_cookies(settings.get('cookie', {}),
-                                        userid)
+        cookie_settings = settings.get('cookie', {})
+        if url.hostname == cookie_settings.get('domain'):
+            source['cookies'] = get_cookies(cookie_settings,
+                                            userid)
         source['verify'] = settings.get('ssl', {}).get('verify', True)
     elif url.scheme in ('swift+http', 'swift+https'):
         # TODO: should check swift host name as well
-        # FIXWE: assumes settings is not None
-        swift_settings = settings and settings.get('swift', {}) or {}
+        swift_settings = settings.get('swift', {})
         for key in ('os_auth_url', 'os_username', 'os_password', 'os_tenant_name'):
-            if key not in swift_settings:
-                continue
-            source[key] = swift_settings[key]
+            if key in swift_settings:
+                source[key] = swift_settings[key]
     return source
 
 
