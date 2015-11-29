@@ -27,20 +27,30 @@ setup(
     install_requires=[
         'setuptools',  # distribute
         'celery',
-        'requests',
-        'requests-oauthlib',
-        'backports.ssl_match_hostname',
-        'org.bccvl.movelib[http,scp,swift]',
-        'GDAL',
-        'python-xmp-toolkit',  # requires yuminstall exempi
+        'org.bccvl.movelib',
     ],
     extras_require={
         'bccvl': [
             'org.bccvl.site'
         ],
         'exports': [
+            'requests',
+            'requests-oauthlib',
             'google-api-python-client',
             'dropbox',
-        ]
+        ],
+        'metadata': [
+            'GDAL',
+            'python-xmp-toolkit',
+        ],
+        'http': [
+            'org.bccvl.movelib[http]',
+        ],
+        'scp': [
+            'org.bccvl.movelib[scp]',
+        ],
+        'swift': [
+            'org.bccvl.movelib[swift]',
+        ],
     }
 )
