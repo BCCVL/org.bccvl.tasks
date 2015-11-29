@@ -428,6 +428,11 @@ def transfer_afileout(params, context):
 def transfer_outputs(params, context):
     # items to import
     items = []
+    # add job script to outputs
+    shutil.copyfile(os.path.join(params['env']['scriptdir'],
+                                 params['worker']['script']['name']),
+                    os.path.join(params['env']['outputdir'],
+                                 params['worker']['script']['name']))
     # build collection of all output files
     filelist = set()
     out_dir = params['env']['outputdir']
