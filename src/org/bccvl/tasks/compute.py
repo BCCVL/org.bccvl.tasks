@@ -20,9 +20,10 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from celery.utils.log import get_task_logger
 
 from org.bccvl.movelib import move
+from org.bccvl.movelib.utils import build_source, build_destination
 from org.bccvl.tasks import datamover
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks.utils import build_source, build_destination, extract_metadata
+from org.bccvl.tasks.utils import extract_metadata
 from org.bccvl.tasks.utils import set_progress, set_progress_job
 from org.bccvl.tasks.utils import import_result_job, import_cleanup_job
 

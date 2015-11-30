@@ -6,8 +6,8 @@ import shutil
 import tempfile
 
 from org.bccvl import movelib
+from org.bccvl.movelib.utils import build_source, build_destination
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks.utils import build_source, build_destination
 from org.bccvl.tasks.utils import traverse_dict, extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
