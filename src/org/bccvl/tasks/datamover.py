@@ -14,7 +14,7 @@ from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
 from org.bccvl.tasks.utils import import_ala_job, import_file_metadata_job
 
 
-LOG = logging.getLogger('__name__')
+LOG = logging.getLogger(__name__)
 
 
 @app.task()
