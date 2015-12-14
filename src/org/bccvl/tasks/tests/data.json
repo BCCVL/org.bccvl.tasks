@@ -1,0 +1,66 @@
+{
+    "classification": {
+        "clazz": "Equisetopsida",
+        "clazzGuid": "urn:lsid:biodiversity.org.au:apni.taxon:406945",
+        "family": "Araucariaceae",
+        "familyGuid": "urn:lsid:biodiversity.org.au:apni.taxon:395074",
+        "genus": "Wollemia",
+        "genusGuid": "urn:lsid:biodiversity.org.au:apni.taxon:261865",
+        "guid": "urn:lsid:biodiversity.org.au:apni.taxon:262359",
+        "kingdom": "Plantae",
+        "kingdomGuid": "urn:lsid:biodiversity.org.au:apni.taxon:661518",
+        "order": "Pinales",
+        "orderGuid": "urn:lsid:biodiversity.org.au:apni.taxon:417472",
+        "phylum": "Charophyta",
+        "phylumGuid": "urn:lsid:biodiversity.org.au:apni.taxon:412162",
+        "rank": "species",
+        "rankId": 7000,
+        "scientificName": "Wollemia nobilis",
+        "species": "Wollemia nobilis",
+        "speciesGuid": "urn:lsid:biodiversity.org.au:apni.taxon:262359"
+    },
+    "commonNames": [
+        {
+            "guid": "",
+            "infoSourceId": "2",
+            "infoSourceName": "Australian Plant Names Index",
+            "infoSourceURL": "http://www.anbg.gov.au/apni/",
+            "isBlackListed": false,
+            "isPreferred": true,
+            "nameString": "Wollemi Pine",
+            "noOfRankings": 3,
+            "preferred": true,
+            "ranking": 3
+        }
+    ],
+    "identifiers": [
+        "urn:lsid:biodiversity.org.au:apni.taxon:246059",
+        "urn:lsid:biodiversity.org.au:apni.taxon:261866"
+    ],
+    "isAustralian": true,
+    "linkIdentifier": "Wollemia nobilis",
+    "taxonConcept": {
+        "author": "W.G.Jones, K.D.Hill & J.M.Allen",
+        "authorYear": "1995",
+        "guid": "urn:lsid:biodiversity.org.au:apni.taxon:262359",
+        "id": 169421,
+        "infoSourceId": "5",
+        "infoSourceName": "Australian Plant Census",
+        "infoSourceURL": "http://biodiversity.org.au/apni.taxon/262359",
+        "isDraft": false,
+        "isExcluded": false,
+        "isPreferred": true,
+        "isProtologue": false,
+        "left": 331300,
+        "nameGuid": "urn:lsid:biodiversity.org.au:apni.name:202019",
+        "nameString": "Wollemia nobilis",
+        "parentGuid": "urn:lsid:biodiversity.org.au:apni.taxon:261865",
+        "parentId": "169420",
+        "rankID": 7000,
+        "rankString": "species",
+        "rawRankString": "Species",
+        "referencedIn": "Harden, G.J. & Murray, L.J. 2000, Flora of New South Wales Supplement 1 1-77",
+        "referencedInGuid": "urn:lsid:biodiversity.org.au:apni.reference:179126",
+        "right": 331301
+    }
+}

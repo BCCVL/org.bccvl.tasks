@@ -1,0 +1,8 @@
+"Longitude - original","Latitude - original","Coordinate Uncertainty in Metres - parsed","Event Date - parsed","Year - parsed","Month - parsed","Supplied coordinates are zero","Basis of record badly formed","Suspected outlier","Unable to convert UTM coordinates","Basis of record not supplied","Unparseable verbatim coordinates","Coordinates centre of country","Geospatial issue","Coordinates are out of range for species","Outside expert range for species","Record Verified","processing Error","Decimal latitude/longitude conversion failed","Supplied coordinates centre of state","Habitat incorrect for species"
+"","","","","1999","01","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"
+"","","","","","","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"
+"115.000000","-32.000000","","","","","false","false","false","false","false","false","false","false","false","false","false","false","false","false","true"
+"144.95","-37.7833333","1000.0","2006-09-06","2006","09","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"
+"","","","2007-12-22","2007","12","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"
+"150° 00' E","32° 00' S","","1994-11-17","1994","11","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"
+"","","","1994-11-18","1994","11","false","false","false","false","false","false","false","false","false","false","false","false","false","false","false"

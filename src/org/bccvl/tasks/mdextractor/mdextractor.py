@@ -7,6 +7,16 @@ import mimetypes
 import json
 
 
+def safe_unicode(value, encoding='utf-8'):
+    if isinstance(value, unicode):
+        return value
+    elif isinstance(value, basestring):
+        try:
+            value = unicode(value, encoding)
+        except (UnicodeDecodeError):
+            value = value.decode('utf-8', 'replace')
+        return value
+
 #@implementer(IMetadataExtractor)
 class MetadataExtractor(object):
 
@@ -22,8 +32,11 @@ class MetadataExtractor(object):
     def from_file(self, path, mime_type):
         md = None
         # TODO: catch all exceptions here?
-        if mime_type in self.extractors:
-            md = self.extractors[mime_type].from_file(path)
+        extractor = self.extractors.get(mime_type)
+        if extractor:
+            md = extractor.from_file(path)
+        else:
+            md = {}
         return md
 
     def from_archive(self, archivepath, path, mime_type):
@@ -343,6 +356,10 @@ class CSVExtractor(object):
             if 'species' in headers:
                 speciesidx = headers.index('species')
             for row in csvreader:
+                if not row:
+                    # there could be an empty row at end of file
+                    continue
+                # we count only rows with data
                 count += 1
                 lat, lon = float(row[latidx]), float(row[lonidx])
                 bounds.update(
@@ -352,14 +369,14 @@ class CSVExtractor(object):
                     right=max(lon, bounds['right'])
                 )
                 if speciesidx is not None:
-                    species.add(row[speciesidx])
+                    species.add(safe_unicode(row[speciesidx]))
 
             data['rows'] = count
             data['species'] = list(species)
             data['bounds'] = bounds
 
         data.update({
-            'headers': headers,
+            'headers': [safe_unicode(h) for h in headers],
         })
 
         return data
