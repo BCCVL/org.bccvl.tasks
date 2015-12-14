@@ -260,7 +260,7 @@ def run_script(wrapper, params, context):
 
         start_import = set_progress_job('RUNNING', 'Import results', context)
 
-        import_job = import_result_job(items, params, context)
+        import_job = import_result_job(items, params['result']['results_dir'], context)
         import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
 
         finish_job = set_progress_job('FAILED', errmsg, context)
