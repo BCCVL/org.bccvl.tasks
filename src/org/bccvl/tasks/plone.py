@@ -255,6 +255,7 @@ def set_progress(state, message, context, **kw):
     if '_jobid' in kw:
         # TODO: should we do some security check here?
         #       e.g. only admin and user who owns the job can update it?
+        # TODO: jobid may not exist
         job = jobtool.get_job_by_id(kw['_jobid'])
     else:
         jt = IJobTracker(kw['_context'])

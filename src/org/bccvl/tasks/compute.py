@@ -365,7 +365,7 @@ def reproject_to_webmercator(params, context):
     # TO-DO: Catch an exception if there isn't a .tif output file
     srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
     # Fetch the original projection
-
+    # TODO: [0] may raise index error if there is no result?
     srcfile = [x for x in glob.iglob(os.path.join(srcpath,
                                                   'proj_current', '*.tif'))
                if 'Clamping' not in x][0]
