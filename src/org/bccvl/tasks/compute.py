@@ -104,7 +104,7 @@ def run_script_SDM(wrapper, params, context):
         scriptname = create_scripts(params, context)
 
         # run the script
-        errmsg = 'Fail to run experiement'
+        errmsg = 'Fail to run experiment'
         set_progress('RUNNING', 'Executing job', context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'RUNNING')
