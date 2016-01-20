@@ -127,14 +127,14 @@ def run_script_SDM(wrapper, params, context):
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
-        writerusage(rusage, params)
+        usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
         # Reproject to Web Mercator
         reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context)
+        set_progress('RUNNING', 'Transferring outputs', context, usage)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'TRANSFERRING')
 
@@ -214,12 +214,12 @@ def run_script(wrapper, params, context):
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         # TODO: should we write this as json file and send as result back
         #       or just send rusage with finished message?
-        writerusage(rusage, params)
+        usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context)
+        set_progress('RUNNING', 'Transferring outputs', context, usage)
         # TODO: maybe redesign this?
         #       transfer only uploads to destination and stores new url somewhere
         #       and we do metadata extraction and item creation afterwards (here)?
@@ -524,7 +524,7 @@ def decimal_encoder(o):
     raise TypeError(repr(o) + " is not JSON serializable")
 
 
-def writerusage(rusage, params):
+def get_rusage(rusage):
     names = ('ru_utime', 'ru_stime',
              'ru_maxrss', 'ru_ixrss', 'ru_idrss', 'ru_isrss',
              'ru_minflt', 'ru_majflt', 'ru_nswap', 'ru_inblock', 'ru_oublock',
@@ -534,12 +534,6 @@ def writerusage(rusage, params):
     # Note: to get correct pagesize this needs to run on the same
     #       machine where rusage stats came from
     procstats['rusage']['ru_maxrss'] *= resource.getpagesize()
-    statsfile = open(os.path.join(params['env']['outputdir'],
-                                  'pstats.json'),
-                     'w')
-    json.dump(procstats, statsfile, default=decimal_encoder,
-              sort_keys=True, indent=4)
-    statsfile.close()
     # cputime= utime+ stime (virtual cpu time)
     # average unshared data size: idrss/cputime+ isrss/cputime (wall could be 0)
     # Wall: separate elapsed timer?
@@ -550,6 +544,7 @@ def writerusage(rusage, params):
     # average resident set size: idrss/cputime
     # maybe I can get start time from subprocess object?
     # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
+    return procstats
 
 
 def download_input(move_args):
