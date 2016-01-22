@@ -106,8 +106,8 @@ def zope_task(**task_kw):
                     try:
                         transaction.begin()
 
-                        # assume zope context info is either in kw or last in args
-                        ctxt = kw.get('context', args[-1])
+                        # assume zope context is always passed as kw
+                        ctxt = kw.get('context', {})
                         userid = ctxt['user']['id']
                         #-> split path components in
                         #   context['context_path'], convert to str and
@@ -250,7 +250,7 @@ def import_result(items, results_dir, context, **kw):
 
 # TODO: this task is not allowed to fail
 @zope_task()
-def set_progress(state, message, context, rusage=None, **kw):
+def set_progress(state, message, rusage, context, **kw):
     jobtool = getUtility(IJobUtility)
     if '_jobid' in kw:
         # TODO: should we do some security check here?

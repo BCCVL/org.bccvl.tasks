@@ -85,7 +85,7 @@ def run_script_SDM(wrapper, params, context):
     try:
 
         errmsg = 'Fail to transfer/import data'
-        set_progress('RUNNING', 'Transferring data', context)
+        set_progress('RUNNING', 'Transferring data', None, context)
 
         # create initial folder structure
         create_workenv(params)
@@ -105,7 +105,7 @@ def run_script_SDM(wrapper, params, context):
 
         # run the script
         errmsg = 'Fail to run experiment'
-        set_progress('RUNNING', 'Executing job', context)
+        set_progress('RUNNING', 'Executing job', None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'RUNNING')
 
@@ -134,14 +134,14 @@ def run_script_SDM(wrapper, params, context):
         reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context, usage)
+        set_progress('RUNNING', 'Transferring outputs', usage, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'TRANSFERRING')
 
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
 
-        set_progress('COMPLETED', 'Task succeeded', context)
+        set_progress('COMPLETED', 'Task succeeded', None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'COMPLETE')
 
@@ -161,7 +161,7 @@ def run_script_SDM(wrapper, params, context):
         # log error message with exception and traceback
         LOG.exception(errmsg)
 
-        set_progress('FAILED', errmsg, context)
+        set_progress('FAILED', errmsg, None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'FAILED')
 
@@ -181,7 +181,7 @@ def run_script(wrapper, params, context):
     items = []
     try:
         errmsg = 'Fail to transfer/import data'
-        set_progress('RUNNING', 'Transferring data', context)
+        set_progress('RUNNING', 'Transferring data', None, context)
 
         # create initial folder structure
         create_workenv(params)
@@ -193,7 +193,7 @@ def run_script(wrapper, params, context):
 
         # run the script
         errmsg = 'Fail to run experiement'
-        set_progress('RUNNING', 'Executing job', context)
+        set_progress('RUNNING', 'Executing job', None, context)
 
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
@@ -219,7 +219,7 @@ def run_script(wrapper, params, context):
 
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context, usage)
+        set_progress('RUNNING', 'Transferring outputs', usage, context)
         # TODO: maybe redesign this?
         #       transfer only uploads to destination and stores new url somewhere
         #       and we do metadata extraction and item creation afterwards (here)?
@@ -227,18 +227,18 @@ def run_script(wrapper, params, context):
 
         # we are done here, hand over to result importer
         # build a chain of the remaining tasks
-        start_import = set_progress_job('RUNNING', 'Import results', context)
+        start_import = set_progress_job('RUNNING', 'Import results', None, context)
 
         cleanup_job = import_cleanup_job(params['result']['results_dir'], context)
         import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
         import_job.link_error(cleanup_job)
 
         if ret != 0:
             errmsg = 'Script execution failed with exit code {0}'.format(ret)
-            finish_job = set_progress_job('FAILED', errmsg, context)
+            finish_job = set_progress_job('FAILED', errmsg, None, context)
         else:
-            finish_job = set_progress_job('COMPLETED', 'Task succeeded', context)
+            finish_job = set_progress_job('COMPLETED', 'Task succeeded', None, context)
 
         (start_import | import_job | cleanup_job | finish_job).delay()
 
@@ -258,12 +258,12 @@ def run_script(wrapper, params, context):
         # log error message with exception and traceback
         LOG.exception(errmsg)
 
-        start_import = set_progress_job('RUNNING', 'Import results', context)
+        start_import = set_progress_job('RUNNING', 'Import results', None, context)
 
         import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
 
-        finish_job = set_progress_job('FAILED', errmsg, context)
+        finish_job = set_progress_job('FAILED', errmsg, None, context)
 
         (start_import | import_job | finish_job).delay()
         raise
