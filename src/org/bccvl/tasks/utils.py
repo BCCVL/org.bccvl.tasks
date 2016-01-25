@@ -7,7 +7,7 @@ from org.bccvl.tasks.mdextractor import MetadataExtractor
 LOG = logging.getLogger(__name__)
 
 
-def set_progress(state, statusmsg, context, rusage):
+def set_progress(state, statusmsg, rusage, context):
     app.signature("org.bccvl.tasks.plone.set_progress",
                   kwargs={
                       'state': state,
@@ -25,7 +25,7 @@ def import_cleanup(results_dir, context):
                   }).delay()
 
 
-def set_progress_job(state, statusmsg, context, rusage):
+def set_progress_job(state, statusmsg, rusage, context):
     return app.signature("org.bccvl.tasks.plone.set_progress",
                          kwargs={
                              'state': state,
@@ -40,7 +40,7 @@ def import_result_job(items, params, context):
     return app.signature("org.bccvl.tasks.plone.import_result",
                          kwargs={
                              'items': items,
-                             'result_dir': params,
+                             'results_dir': params,
                              'context': context
                          },
                          immutable=True)
