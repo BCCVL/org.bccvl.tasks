@@ -106,8 +106,8 @@ def zope_task(**task_kw):
                     try:
                         transaction.begin()
 
-                        # assume zope context info is either in kw or last in args
-                        ctxt = kw.get('context', args[-1])
+                        # assume zope context is always passed as kw
+                        ctxt = kw.get('context', {})
                         userid = ctxt['user']['id']
                         #-> split path components in
                         #   context['context_path'], convert to str and
@@ -250,7 +250,7 @@ def import_result(items, results_dir, context, **kw):
 
 # TODO: this task is not allowed to fail
 @zope_task()
-def set_progress(state, message, context, **kw):
+def set_progress(state, message, rusage, context, **kw):
     jobtool = getUtility(IJobUtility)
     if '_jobid' in kw:
         # TODO: should we do some security check here?
@@ -260,7 +260,7 @@ def set_progress(state, message, context, **kw):
     else:
         jt = IJobTracker(kw['_context'])
         job = jt.get_job()
-    jobtool.set_progress(job, state, message)
+    jobtool.set_progress(job, state, message, rusage)
     if state in ('COMPLETED', 'FAILED'):
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state %s", state)
@@ -289,12 +289,10 @@ def set_progress(state, message, context, **kw):
         LOG.info("Plone: Update job state RUNNING")
     if not '_jobid' in kw:
         kw['_context'].reindexObject() # TODO: reindex job state only?
-        # TODO: track runtime on job object
-        # compute the experiement run time if all its jobs are completed
+        # Compute the experiement run time if all its jobs are completed
         # The experiment is the parent job
         jt = IExperimentJobTracker(kw['_context'].__parent__, None)
         if jt and jt.state in ('COMPLETED', 'FAILED'):
-            # FIXME: store run time on job
             exp = jt.context
             exp.runtime = time.time() - (exp.created().millis()/1000.0)
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)

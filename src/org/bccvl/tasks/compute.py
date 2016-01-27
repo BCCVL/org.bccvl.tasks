@@ -85,7 +85,7 @@ def run_script_SDM(wrapper, params, context):
     try:
 
         errmsg = 'Fail to transfer/import data'
-        set_progress('RUNNING', 'Transferring data', context)
+        set_progress('RUNNING', 'Transferring data', None, context)
 
         # create initial folder structure
         create_workenv(params)
@@ -104,8 +104,8 @@ def run_script_SDM(wrapper, params, context):
         scriptname = create_scripts(params, context)
 
         # run the script
-        errmsg = 'Fail to run experiement'
-        set_progress('RUNNING', 'Executing job', context)
+        errmsg = 'Fail to run experiment'
+        set_progress('RUNNING', 'Executing job', None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'RUNNING')
 
@@ -127,21 +127,21 @@ def run_script_SDM(wrapper, params, context):
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
-        writerusage(rusage, params)
+        usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
         # Reproject to Web Mercator
         reproject_to_webmercator(params, context)
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context)
+        set_progress('RUNNING', 'Transferring outputs', usage, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'TRANSFERRING')
 
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_afileout(params, context)
 
-        set_progress('COMPLETED', 'Task succeeded', context)
+        set_progress('COMPLETED', 'Task succeeded', None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'COMPLETE')
 
@@ -161,7 +161,7 @@ def run_script_SDM(wrapper, params, context):
         # log error message with exception and traceback
         LOG.exception(errmsg)
 
-        set_progress('FAILED', errmsg, context)
+        set_progress('FAILED', errmsg, None, context)
         # FIXME: remove me
         write_status_to_nectar(params, context, u'FAILED')
 
@@ -181,7 +181,7 @@ def run_script(wrapper, params, context):
     items = []
     try:
         errmsg = 'Fail to transfer/import data'
-        set_progress('RUNNING', 'Transferring data', context)
+        set_progress('RUNNING', 'Transferring data', None, context)
 
         # create initial folder structure
         create_workenv(params)
@@ -193,7 +193,7 @@ def run_script(wrapper, params, context):
 
         # run the script
         errmsg = 'Fail to run experiement'
-        set_progress('RUNNING', 'Executing job', context)
+        set_progress('RUNNING', 'Executing job', None, context)
 
         scriptout = os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name'] + 'out')
@@ -214,12 +214,12 @@ def run_script(wrapper, params, context):
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         # TODO: should we write this as json file and send as result back
         #       or just send rusage with finished message?
-        writerusage(rusage, params)
+        usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
         # move results back
         errmsg = 'Fail to transfer results back'
-        set_progress('RUNNING', 'Transferring outputs', context)
+        set_progress('RUNNING', 'Transferring outputs', usage, context)
         # TODO: maybe redesign this?
         #       transfer only uploads to destination and stores new url somewhere
         #       and we do metadata extraction and item creation afterwards (here)?
@@ -227,18 +227,18 @@ def run_script(wrapper, params, context):
 
         # we are done here, hand over to result importer
         # build a chain of the remaining tasks
-        start_import = set_progress_job('RUNNING', 'Import results', context)
+        start_import = set_progress_job('RUNNING', 'Import results', None, context)
 
         cleanup_job = import_cleanup_job(params['result']['results_dir'], context)
         import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
         import_job.link_error(cleanup_job)
 
         if ret != 0:
             errmsg = 'Script execution failed with exit code {0}'.format(ret)
-            finish_job = set_progress_job('FAILED', errmsg, context)
+            finish_job = set_progress_job('FAILED', errmsg, None, context)
         else:
-            finish_job = set_progress_job('COMPLETED', 'Task succeeded', context)
+            finish_job = set_progress_job('COMPLETED', 'Task succeeded', None, context)
 
         (start_import | import_job | cleanup_job | finish_job).delay()
 
@@ -258,12 +258,12 @@ def run_script(wrapper, params, context):
         # log error message with exception and traceback
         LOG.exception(errmsg)
 
-        start_import = set_progress_job('RUNNING', 'Import results', context)
+        start_import = set_progress_job('RUNNING', 'Import results', None, context)
 
         import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', context))
+        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
 
-        finish_job = set_progress_job('FAILED', errmsg, context)
+        finish_job = set_progress_job('FAILED', errmsg, None, context)
 
         (start_import | import_job | finish_job).delay()
         raise
@@ -524,7 +524,7 @@ def decimal_encoder(o):
     raise TypeError(repr(o) + " is not JSON serializable")
 
 
-def writerusage(rusage, params):
+def get_rusage(rusage):
     names = ('ru_utime', 'ru_stime',
              'ru_maxrss', 'ru_ixrss', 'ru_idrss', 'ru_isrss',
              'ru_minflt', 'ru_majflt', 'ru_nswap', 'ru_inblock', 'ru_oublock',
@@ -534,12 +534,6 @@ def writerusage(rusage, params):
     # Note: to get correct pagesize this needs to run on the same
     #       machine where rusage stats came from
     procstats['rusage']['ru_maxrss'] *= resource.getpagesize()
-    statsfile = open(os.path.join(params['env']['outputdir'],
-                                  'pstats.json'),
-                     'w')
-    json.dump(procstats, statsfile, default=decimal_encoder,
-              sort_keys=True, indent=4)
-    statsfile.close()
     # cputime= utime+ stime (virtual cpu time)
     # average unshared data size: idrss/cputime+ isrss/cputime (wall could be 0)
     # Wall: separate elapsed timer?
@@ -550,6 +544,7 @@ def writerusage(rusage, params):
     # average resident set size: idrss/cputime
     # maybe I can get start time from subprocess object?
     # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
+    return procstats
 
 
 def download_input(move_args):

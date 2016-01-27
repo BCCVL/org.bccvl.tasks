@@ -1,27 +1,16 @@
 import requests
-from requests_oauthlib import OAuth1
-import json
 import tempfile
-import zipfile
 import xml.etree.ElementTree as ET
-from os.path import split, exists, join
+import os.path
 import smtplib
 from email.mime.text import MIMEText
 import logging
-from datetime import datetime
 
-# google api
-import httplib2
-from apiclient import discovery
-from oauth2client import client
-from apiclient import errors
-from apiclient.http import MediaFileUpload, MediaIoBaseUpload
 import mimetypes
-import shutil
 
-import dropbox
-from time import sleep
-from random import randint
+from org.bccvl import movelib
+from org.bccvl.movelib.utils import build_source, build_destination, get_cookies
+
 
 LOG = logging.getLogger(__name__)
 
@@ -51,38 +40,37 @@ The BCCVL
 """
 
 
-def get_zip(url):
+def get_files(urllist, userid, conf):
     """
-    Download experiment zip file, into a tempfile with autodelete, open as ZipFile and
-    return ZipFile object.
+    Download all files fiven in urllist to local tempfile
+    return temp folder location.
     """
-    r = requests.get(url, stream=True)
-    f = tempfile.NamedTemporaryFile(
-        prefix="bccvl_export", dir="/tmp", delete=True)
-    for chunk in r.iter_content(chunk_size=1024):
-        if chunk:  # filter out keep-alive new chunks
-            f.write(chunk)
-            f.flush()
-    f.seek(0)
-    return zipfile.ZipFile(f, 'r')
+    dest = tempfile.mkdtemp(prefix='bccvl_export')
+    for url in urllist:
+        src = build_source(url, userid, conf)
+        dst = build_destination('file://{0}'.format(dest), conf)
+        movelib.move(src, dst)
+    return dest
 
 
-def get_oauth_tokens(serviceid, user):
+def get_oauth_tokens(siteurl, serviceid, user, conf):
     """
     Acquire user and service related OAUTH tokens from the BCCVL
     """
+    cookie = get_cookies(conf.get('cookie', {}), user)
+    verify = conf.get('ssl', {}).get('verify', True)
+    s = requests.Session()
+    if cookie:
+        s.cookies.set(**cookie)
     try:
-        access_tokens = requests.get(
-            "http://127.0.0.1:8201/bccvl/oauth/{0}/accesstoken?user={1}".format(serviceid, user)).json()
+        access_tokens = s.get(
+            "{0}/oauth/{1}/accesstoken".format(siteurl, serviceid),
+            verify=verify).json()
     except Exception as e:
         LOG.error('Error getting access token: {0}'.format(str(e)))
         raise e
-    try:
-        client_tokens = requests.get(
-            "http://127.0.0.1:8201/bccvl/oauth/{0}/clienttoken".format(serviceid)).json()
-    except Exception as e:
-        LOG.error('Error getting client token: {0}'.format(str(e)))
-        raise e
+    # get client token from configuration
+    client_tokens = conf['oauth'].get(serviceid, {})
     return client_tokens, access_tokens
 
 
@@ -92,15 +80,13 @@ def guess_mimetype(filename):
         filename.split('.')[-1], 'application/octet-stream')
 
 
-def get_metadata(zf):
+def get_metadata(metsfile):
     """
     Extract title and description from the METS xml file.
     """
-    try:
-        fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
-    except Exception as e:
+    if not os.path.exists(metsfile):
         raise Exception('No METS data found.')
-    root = ET.parse(zf.open(fn, 'r')).getroot()
+    root = ET.parse(open(metsfile, 'r')).getroot()
     title = root.findall(
         './/{0}dmdSec/{0}mdWrap/{0}xmlData/{1}mods/{1}titleInfo[@displayLabel="Title"]/{1}title'.format(
             "{http://www.loc.gov/METS/}",
@@ -112,16 +98,16 @@ def get_metadata(zf):
     return {'title': title, 'description': abstract}
 
 
-def get_datafiles(zf, include_prov=True):
+def get_datafiles(tmpdir, include_prov=True):
     """
     return the full path within the zip file of all files that are in the data subfolder.
     """
     if include_prov:
-        return filter(lambda x: (x.split(
-            '/')[1] == 'data' and len(x.split('/')[-1])) or x.endswith('prov.ttl'), zf.namelist())
+        return ('{0}/{1}'.format(tmpdir, fname) for fname in
+                os.listdir(tmpdir) if fname != 'mets.xml')
     else:
-        return filter(lambda x: (x.split(
-            '/')[1] == 'data' and len(x.split('/')[-1])), zf.namelist())
+        return ('{0}/{1}'.format(tmpdir, fname) for fname in
+                 os.listdir(tmpdir) if fname not in ('mets.xml', 'prov.ttl'))
 
 
 def send_mail(

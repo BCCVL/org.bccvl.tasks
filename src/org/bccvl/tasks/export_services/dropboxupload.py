@@ -1,28 +1,25 @@
-import requests
-import json
-import tempfile
-import zipfile
-from os.path import split, exists, join
 import logging
-from datetime import datetime
-
+from random import randint
 import shutil
+import time
+import os.path
 
 import dropbox
-from time import sleep
-from random import randint
 
-from .util import get_zip, get_oauth_tokens, guess_mimetype, get_metadata, get_datafiles, send_mail
+from .util import get_files, get_oauth_tokens, get_metadata, get_datafiles, send_mail
+
 
 LOG = logging.getLogger(__name__)
 
 
-def export_dropbox(zipurl, serviceid, context):
+def export_dropbox(siteurl, fileurls, serviceid, context, conf):
     uploaded = []
     last_error = None
+    tmpdir = get_files(fileurls, context['user']['id'], conf)
+    metadata = get_metadata(os.path.join(tmpdir, 'mets.xml'))
     try:
         client_tokens, access_tokens = get_oauth_tokens(
-            serviceid, context['user']['id'])
+            siteurl, serviceid, context['user']['id'], conf)
         access_token = access_tokens['access_token']
     except Exception as e:
         msg = "Error uploading experiment '{0}' - Access Token could not be refreshed: {1}".format(
@@ -30,8 +27,6 @@ def export_dropbox(zipurl, serviceid, context):
             str(e))
         LOG.error(msg)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
-    zf = get_zip(zipurl)
-    metadata = get_metadata(zf)
     foldername = metadata['title']
     try:
         success = False
@@ -61,38 +56,27 @@ def export_dropbox(zipurl, serviceid, context):
                         client.file_delete(metadata['title'])
 
                 client.file_create_folder(foldername)
-                client.file_create_folder(join(foldername, 'data'))
+                client.file_create_folder(os.path.join(foldername, 'data'))
 
-                tmpdir = tempfile.mkdtemp(prefix='bccvl')
-                zf.extractall(tmpdir)
-                datafiles = get_datafiles(zf, include_prov=False)
+                datafiles = get_datafiles(tmpdir, include_prov=False)
 
                 for fn in datafiles:
-                    client.put_file(join(foldername, 'data', split(fn)
-                                         [-1]), open(join(tmpdir, fn), 'rb'))
+                    client.put_file(
+                        os.path.join(foldername, os.path.basename(fn)),
+                        open(fn, 'rb'))
                     uploaded.append(fn)
 
-                mets_fn = filter(
-                    lambda x: x.endswith('mets.xml'),
-                    zf.namelist())[0]
+                mets_fn = os.path.join(tmpdir, 'mets.xml')
                 client.put_file(
-                    join(
-                        foldername, 'mets.xml'), open(
-                            join(
-                                tmpdir, mets_fn), 'rb'))
+                    os.path.join(foldername, os.path.basename(mets_fn)),
+                    open(mets_fn, 'rb'))
                 uploaded.append(mets_fn)
 
-                prov_fns = filter(
-                    lambda x: x.endswith('prov.ttl'),
-                    zf.namelist())
-                if len(prov_fns):
-                    prov_fn = prov_fns[0]
-                    client.put_file(
-                        join(
-                            foldername, 'prov.ttl'), open(
-                                join(
-                                    tmpdir, mets_fn), 'rb'))
-                    uploaded.append(prov_fn)
+                prov_fn = os.path.join(tmpdir, 'prov.ttl')
+                client.put_file(
+                    os.path.join(foldername, os.path.basename(prov_fn)),
+                    open(prov_fn, 'rb'))
+                uploaded.append(prov_fn)
 
                 msg = "\n".join(uploaded)
                 send_mail(
@@ -122,5 +106,5 @@ def export_dropbox(zipurl, serviceid, context):
         LOG.error(msg)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
     finally:
-        if exists(tmpdir):
+        if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

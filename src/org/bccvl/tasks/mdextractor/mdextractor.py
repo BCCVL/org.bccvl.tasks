@@ -382,7 +382,7 @@ class CSVExtractor(object):
         return data
 
     def from_file(self, path):
-        csvfile = open(path, 'r')
+        csvfile = open(path, 'rU')
         return self.from_fileob(csvfile)
 
     def from_string(self, data):
