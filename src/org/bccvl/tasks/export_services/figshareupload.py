@@ -1,29 +1,24 @@
+from itertools import chain
+import json
+import logging
+import os.path
+
 import requests
 from requests_oauthlib import OAuth1
-import json
-import tempfile
-import zipfile
-from os.path import split, exists, join
-import logging
-from datetime import datetime
 
-import shutil
+from .util import get_files, get_oauth_tokens, get_metadata, get_datafiles, send_mail
 
-from time import sleep
-from random import randint
-
-from .util import get_zip, get_oauth_tokens, guess_mimetype, get_metadata, get_datafiles, send_mail
 
 LOG = logging.getLogger(__name__)
 
 
-def export_figshare(zipurl, serviceid, context):
+def export_figshare(siteurl, fileurls, serviceid, context, conf):
     """
     Export dataset to figshare via the figshare rest api (oauth1)
     """
 
     client_tokens, access_tokens = get_oauth_tokens(
-        serviceid, context['user']['id'])
+        siteurl, serviceid, context['user']['id'], conf)
     oauth_tokens = client_tokens
     oauth_tokens.update(access_tokens)
     oauth_tokens['resource_owner_key'] = oauth_tokens.get('oauth_token')
@@ -34,8 +29,8 @@ def export_figshare(zipurl, serviceid, context):
     oauth_tokens['signature_type'] = 'auth_header'
     oauth = OAuth1(**oauth_tokens)
 
-    zf = get_zip(zipurl)
-    metadata = get_metadata(zf)
+    tmpdir = get_files(fileurls, context['user']['id'], conf)
+    metadata = get_metadata(os.path.join(tmpdir, 'mets.xml'))
     metadata.update({'defined_type': 'fileset'})
 
     client = requests.session()
@@ -62,11 +57,10 @@ def export_figshare(zipurl, serviceid, context):
         raise e
 
     # add files
-    data_files = get_datafiles(
-        zf) + filter(lambda x: x.endswith('mets.xml'), zf.namelist())
+    data_files = chain(get_datafiles(tmpdir), (os.path.join(tmpdir, 'mets.xml'),))
     # upload one by one to avoid making one enourmous request
     for data_file in data_files:
-        files = {'filedata': (split(data_file)[-1], zf.open(data_file, 'r'))}
+        files = {'filedata': (os.path.split(data_file)[-1], open(data_file, 'rb'))}
         response = client.put(
             'http://api.figshare.com/v1/my_data/articles/{0}/files'.format(
                 article_metadata['article_id']),
@@ -82,7 +76,7 @@ def export_figshare(zipurl, serviceid, context):
                         response.status_code))
         except Exception as e:
             msg = "Error uploading file '{0}': {1} - response: {2}".format(
-                split(data_file)[-1], str(e), str(response.content))
+                os.path.split(data_file)[-1], str(e), str(response.content))
             LOG.error(msg)
             send_mail(
                 context,
@@ -90,7 +84,7 @@ def export_figshare(zipurl, serviceid, context):
                 metadata['title'],
                 msg,
                 success=False)
-            raise e
+            #raise e
 
     # add link to the BCCVL
     bccvl_link = {'link': 'http://www.bccvl.org.au'}

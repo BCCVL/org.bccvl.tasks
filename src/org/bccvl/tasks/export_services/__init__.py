@@ -5,15 +5,14 @@ from .googledriveupload import export_googledrive
 from .figshareupload import export_figshare
 
 
-def unsupported_service(zipurl, serviceid, context):
+def unsupported_service(siteurl, fileurls, serviceid, context):
     raise NotImplementedError(
         "{} is currently not a supported service".format(serviceid))
 
 
 @app.task()
-def export_result(zipurl, serviceid, context):
-    zipurl = "http://127.0.0.1:8201{context}/resultdownload".format(**context)
+def export_result(siteurl, fileurls, serviceid, context):
     export_func = globals().get(
         "export_{}".format(serviceid),
         unsupported_service)
-    export_func(zipurl, serviceid, context)
+    export_func(siteurl, fileurls, serviceid, context, app.conf.get('bccvl', {}))
