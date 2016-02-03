@@ -7,43 +7,71 @@ from org.bccvl.tasks.mdextractor import MetadataExtractor
 LOG = logging.getLogger(__name__)
 
 
-def set_progress(state, statusmsg, context):
+def set_progress(state, statusmsg, rusage, context):
     app.signature("org.bccvl.tasks.plone.set_progress",
-                  args=(state, statusmsg, context)).delay()
+                  kwargs={
+                      'state': state,
+                      'message': statusmsg,
+                      'rusage': rusage,
+                      'context': context,
+                  }).delay()
 
 
 def import_cleanup(results_dir, context):
     app.signature("org.bccvl.tasks.plone.import_cleanup",
-                  args=(results_dir, context)).delay()
+                  kwargs={
+                      'path': results_dir,
+                      'context': context
+                  }).delay()
 
 
-def set_progress_job(state, statusmsg, context):
+def set_progress_job(state, statusmsg, rusage, context):
     return app.signature("org.bccvl.tasks.plone.set_progress",
-                         args=(state, statusmsg, context),
+                         kwargs={
+                             'state': state,
+                             'message': statusmsg,
+                             'rusage': rusage,
+                             'context': context,
+                         },
                          immutable=True)
 
 
 def import_result_job(items, params, context):
     return app.signature("org.bccvl.tasks.plone.import_result",
-                         args=(items, params, context),
+                         kwargs={
+                             'items': items,
+                             'results_dir': params,
+                             'context': context
+                         },
                          immutable=True)
 
 
 def import_file_metadata_job(items, params, context):
     return app.signature("org.bccvl.tasks.plone.import_file_metadata",
-                         args=(items, params, context),
+                         kwargs={
+                             'items': items,
+                             'results_dir': params,
+                             'context': context
+                         },
                          immutable=True)
 
 
 def import_ala_job(items, params, context):
     return app.signature("org.bccvl.tasks.plone.import_ala",
-                         args=(items, params, context),
+                         kwargs={
+                             'items': items,
+                             'results_dir': params,
+                             'context': context
+                         },
                          immutable=True)
 
 
 def import_cleanup_job(results_dir, context):
     return app.signature("org.bccvl.tasks.plone.import_cleanup",
-                         args=(results_dir, context),
+                         kwargs={
+                             'path': results_dir,
+                             'context': context
+                         },
                          immutable=True)
 
 

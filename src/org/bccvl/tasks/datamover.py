@@ -36,7 +36,7 @@ def move(move_args, context):
 @app.task()
 def pull_occurrences_from_ala(lsid, dest_url, context):
     # 1. set progress
-    set_progress('RUNNING', 'Download {0} from ala'.format(lsid), context)
+    set_progress('RUNNING', 'Download {0} from ala'.format(lsid), None, context)
     # 2. do move
     src = None
     dst = None
@@ -46,7 +46,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
-        set_progress('RUNNING', 'Extract metadata {0} from ala'.format(lsid), context)
+        set_progress('RUNNING', 'Extract metadata {0} from ala'.format(lsid), None, context)
         # open ala_dateset.json
         ala_ds = json.load(open(os.path.join(tmpdir, 'ala_dataset.json'), 'r'))
         # collect files inside ds per datatype
@@ -97,16 +97,16 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         item['file']['url'] = dst['url']
         movelib.move(src, dst)
         # tell importer about new dataset (import it)
-        set_progress('RUNNING', 'Import ala data {0}'.format(lsid), context)
+        set_progress('RUNNING', 'Import ala data {0}'.format(lsid), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
-        import_job.link_error(set_progress_job("FAILED", "Import of ala data failed {0}".format(lsid), context))
+        import_job.link_error(set_progress_job("FAILED", "Import of ala data failed {0}".format(lsid), None, context))
         import_job.link_error(cleanup_job)
-        finish_job = set_progress_job("COMPLETED", 'ALA import {} complete'.format(lsid), context)
+        finish_job = set_progress_job("COMPLETED", 'ALA import {} complete'.format(lsid), None, context)
         (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
-        set_progress('FAILED', 'Download {0} from ala: {1}'.format(lsid, e), context)
+        set_progress('FAILED', 'Download {0} from ala: {1}'.format(lsid, e), None, context)
         import_cleanup(dest_url, context)
         LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
     finally:
@@ -197,7 +197,7 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
 @app.task()
 def update_metadata(url, filename, contenttype, context):
     try:
-        set_progress('RUNNING', 'Download {0}'.format(url), context)
+        set_progress('RUNNING', 'Download {0}'.format(url), None, context)
         tmpdir = tempfile.mkdtemp()
         tmpfile = '{}/{}'.format(tmpdir, filename)
         userid = context.get('user', {}).get('id')
@@ -208,14 +208,14 @@ def update_metadata(url, filename, contenttype, context):
         item = {
             'filemetadata': extract_metadata(tmpfile, contenttype)
         }
-        set_progress('RUNNING', 'Import metadata for {0}'.format(url), context)
+        set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
 
         import_job = import_file_metadata_job([item], url, context)
-        import_job.link_error(set_progress_job("FAILED", "Metadata update failed for {0}".format(url), context))
-        finish_job = set_progress_job("COMPLETED", 'Metadata update for {} complete'.format(url), context)
+        import_job.link_error(set_progress_job("FAILED", "Metadata update failed for {0}".format(url), None, context))
+        finish_job = set_progress_job("COMPLETED", 'Metadata update for {} complete'.format(url), None, context)
         (import_job | finish_job).delay()
     except Exception as e:
-        set_progress('FAILED', 'Metadata update for {} failed: {}'.format(url, e), context)
+        set_progress('FAILED', 'Metadata update for {} failed: {}'.format(url, e), None, context)
         LOG.error('Metadata update for %s failed: %s', url, e)
     finally:
         if tmpdir and os.path.exists(tmpdir):

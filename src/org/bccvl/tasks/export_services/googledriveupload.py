@@ -1,37 +1,31 @@
-import requests
-import json
-import tempfile
-import zipfile
-from os.path import split, exists, join
-import logging
 from datetime import datetime
+import json
+import logging
+import os.path
+import shutil
 
 # google api
 import httplib2
 from apiclient import discovery
 from oauth2client import client
 from apiclient import errors
-from apiclient.http import MediaFileUpload, MediaIoBaseUpload
-import mimetypes
-import shutil
+from apiclient.http import MediaFileUpload
 
-from time import sleep
-from random import randint
+from .util import get_files, get_oauth_tokens, guess_mimetype, get_metadata, get_datafiles, send_mail
 
-from .util import get_zip, get_oauth_tokens, guess_mimetype, get_metadata, get_datafiles, send_mail
 
 LOG = logging.getLogger(__name__)
 
 
-def export_googledrive(zipurl, serviceid, context):
-    zf = get_zip(zipurl)
-    metadata = get_metadata(zf)
+def export_googledrive(siteurl, fileurls, serviceid, context, conf):
+    tmpdir = get_files(fileurls, context['user']['id'], conf)
+    metadata = get_metadata(os.path.join(tmpdir, 'mets.xml'))
     uploaded = []
     try:
         client_tokens, access_tokens = get_oauth_tokens(
-            serviceid, context['user']['id'])
+            siteurl, serviceid, context['user']['id'], conf)
         tokens = access_tokens
-        tokens.update(client_tokens['auto_refresh_kwargs'])
+        tokens.update(client_tokens)
         tokens['token_expiry'] = datetime.fromtimestamp(
             tokens['expires_at']).isoformat() + "Z"
         tokens['token_uri'] = "https://accounts.google.com/o/oauth2/token"
@@ -54,8 +48,6 @@ def export_googledrive(zipurl, serviceid, context):
             msg = "Error uploading experiment - Access Token could not be refreshed: {1}".format(
                 metadata['title'],
                 str(e))
-            print msg
-            sys.exit(1)
             LOG.error(msg)
             send_mail(
                 context,
@@ -133,19 +125,15 @@ def export_googledrive(zipurl, serviceid, context):
             body=body,
             media_body=None).execute()
         data_folder_id = folder['id']
-        data_files = get_datafiles(zf, include_prov=False)
-        tmpdir = tempfile.mkdtemp(prefix='bccvl')
-        zf.extractall(tmpdir)
+        data_files = get_datafiles(tmpdir, include_prov=False)
         for data_file in data_files:
             mimetype = guess_mimetype(data_file)
             media_body = MediaFileUpload(
-                join(
-                    tmpdir,
-                    data_file),
+                data_file,
                 mimetype=mimetype,
                 resumable=True)
             body = {
-                'title': split(data_file)[-1],
+                'title': os.path.split(data_file)[-1],
                 'parents': [{'id': data_folder_id}, ],
                 'mimeType': mimetype,
             }
@@ -154,12 +142,10 @@ def export_googledrive(zipurl, serviceid, context):
                 media_body=media_body).execute()
             uploaded.append(data_file)
 
-        mets_fn = filter(lambda x: x.endswith('mets.xml'), zf.namelist())[0]
+        mets_fn = os.path.join(tmpdir, 'mets.xml')
         mimetype = guess_mimetype(mets_fn)
         media_body = MediaFileUpload(
-            join(
-                tmpdir,
-                mets_fn),
+            mets_fn,
             mimetype=mimetype,
             resumable=True)
         body = {
@@ -173,14 +159,11 @@ def export_googledrive(zipurl, serviceid, context):
             media_body=media_body).execute()
         uploaded.append(mets_fn)
 
-        prov_fn = filter(lambda x: x.endswith('prov.ttl'), zf.namelist())
+        prov_fn = os.path.join(tmpdir, 'prov.ttl')
         if len(prov_fn):
-            prov_fn = prov_fn[0]
             mimetype = guess_mimetype(prov_fn)
             media_body = MediaFileUpload(
-                join(
-                    tmpdir,
-                    prov_fn),
+                prov_fn,
                 mimetype=mimetype,
                 resumable=True)
             body = {
@@ -208,5 +191,5 @@ def export_googledrive(zipurl, serviceid, context):
         LOG.error(msg)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
     finally:
-        if exists(tmpdir):
+        if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
