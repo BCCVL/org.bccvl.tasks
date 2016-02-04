@@ -117,7 +117,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
 @app.task()
 def pull_occurrences_from_gbif(lsid, dest_url, context):
     # 1. set progress
-    set_progress('RUNNING', 'Download {0} from gbif'.format(lsid), context)
+    set_progress('RUNNING', 'Download {0} from gbif'.format(lsid), None, context)
     # 2. do move
     src = None
     dst = None
@@ -127,7 +127,7 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
-        set_progress('RUNNING', 'Extract metadata {0} from gbif'.format(lsid), context)
+        set_progress('RUNNING', 'Extract metadata {0} from gbif'.format(lsid), None, context)
         # open gbif_dateset.json
         gbif_ds = json.load(open(os.path.join(tmpdir, 'gbif_dataset.json'), 'r'))
         # collect files inside ds per datatype
@@ -178,16 +178,16 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
         item['file']['url'] = dst['url']
         movelib.move(src, dst)
         # tell importer about new dataset (import it)
-        set_progress('RUNNING', 'Import gbif data {0}'.format(lsid), context)
+        set_progress('RUNNING', 'Import gbif data {0}'.format(lsid), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
-        import_job = import_gbif_job([item], dest_url, context)
-        import_job.link_error(set_progress_job("FAILED", "Import of gbif data failed {0}".format(lsid), context))
+        import_job = import_ala_job([item], dest_url, context)
+        import_job.link_error(set_progress_job("FAILED", "Import of gbif data failed {0}".format(lsid), None, context))
         import_job.link_error(cleanup_job)
-        finish_job = set_progress_job("COMPLETED", 'GBIF import {} complete'.format(lsid), context)
+        finish_job = set_progress_job("COMPLETED", 'GBIF import {} complete'.format(lsid), None, context)
         (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
-        set_progress('FAILED', 'Download {0} from gbif: {1}'.format(lsid, e), context)
+        set_progress('FAILED', 'Download {0} from gbif: {1}'.format(lsid, e), None, context)
         import_cleanup(dest_url, context)
         LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
     finally:
