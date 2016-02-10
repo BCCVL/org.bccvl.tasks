@@ -93,8 +93,8 @@ def zope_task(**task_kw):
             # This is a super ugly way of getting Zope to configure itself
             # from the main instance's zope.conf. XXX FIXME
             sys.argv = ['']
-            if 'Z_CONFIG_FILE' not in os.environ:
-                os.environ['Z_CONFIG_FILE'] = 'parts/instance/etc/zope.conf'
+            if 'ZOPE_CONFIG' not in os.environ:
+                os.environ['ZOPE_CONFIG'] = os.environ.get('Z_CONFIG_FILE', 'parts/instance/etc/zope.conf')
             zapp = makerequest(Zope2.app())
 
             oldsm = getSecurityManager()
