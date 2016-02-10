@@ -85,7 +85,7 @@ def zope_task(**task_kw):
     #       (each job uses a new zodb connection though)
 
     # kw['site_path'] ... path to plone root
-    # os.environ['ZOPE_CONFIG']
+    # os.environ['Z_CONFIG_FILE']
     def wrap(func):
         bind = task_kw.get('bind', False)
 
@@ -93,8 +93,8 @@ def zope_task(**task_kw):
             # This is a super ugly way of getting Zope to configure itself
             # from the main instance's zope.conf. XXX FIXME
             sys.argv = ['']
-            if 'ZOPE_CONFIG' not in os.environ:
-                os.environ['ZOPE_CONFIG'] = 'parts/instance/etc/zope.conf'
+            if 'Z_CONFIG_FILE' not in os.environ:
+                os.environ['Z_CONFIG_FILE'] = 'parts/instance/etc/zope.conf'
             zapp = makerequest(Zope2.app())
 
             oldsm = getSecurityManager()
