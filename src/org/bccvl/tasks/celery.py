@@ -69,7 +69,7 @@ def my_logging(sender, signal, logger, loglevel, logfile, format, colorize):
 app = Celery()
 # load common package bundled settings
 app.config_from_object('org.bccvl.tasks.celeryconfig')
-app.config_from_envvar('CELERY_CONFIG_MODULE')
+app.config_from_envvar('CELERY_CONFIG_MODULE', silent=True)
 app.conf.update(read_ini_file())
 # check sentry config
 if 'sentry' in app.conf['bccvl']:
