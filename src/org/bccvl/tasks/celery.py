@@ -40,7 +40,7 @@ def read_ini_file():
 
     if ini.has_section('swift'):
         config['swift'] = {}
-        config['swift'] = dict(ini.items['swift'])
+        config['swift'] = dict(ini.items('swift'))
 
     if ini.has_section('oauth'):
         config['oauth'] = {}
