@@ -88,6 +88,12 @@ CELERY_ROUTES = [
         }
     },
     {
+        "org.bccvl.tasks.datamover.pull_occurrences_from_gbif": {
+            "queue": "datamover",
+            "routing_key": "datamover"
+        }
+    },
+    {
         "org.bccvl.tasks.datamover.update_metadata": {
             "queue": "datamover",
             "routing_key": "datamover"
