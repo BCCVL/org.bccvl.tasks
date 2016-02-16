@@ -18,9 +18,8 @@ def read_ini_file():
     point to a json file. This file is read and used as configuration
     for the current celery process.
     """
-    if not os.path.exists(os.environ.get('BCCVL_CONFIG')):
-        print os.environ.get('BCCVL_CONFIG')
-        return {}
+    if not os.path.exists(os.environ.get('BCCVL_CONFIG', '')):
+        return {'bccvl': {}}
     ini = SafeConfigParser()
     ini.read([os.environ.get('BCCVL_CONFIG')])
     config = {}
