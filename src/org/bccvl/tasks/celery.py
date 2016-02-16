@@ -39,7 +39,6 @@ def read_ini_file():
             config['ssl']['verify'] = True
 
     if ini.has_section('swift'):
-        config['swift'] = {}
         config['swift'] = dict(ini.items('swift'))
 
     if ini.has_section('oauth'):
