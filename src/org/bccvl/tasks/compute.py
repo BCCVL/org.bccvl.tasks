@@ -95,11 +95,6 @@ def run_script_SDM(wrapper, params, context):
         # transfer input files
         transfer_inputs(params, context)
 
-        # Determine the number of pseudoabsence points
-        pseudoabs = len(open(params['params']['species_occurrence_dataset']['filename']).readlines()) - 1
-        params['params'].update({'species_number_pseudo_absence_points': pseudoabs,
-                                 'species_pseudo_absence_points': True})
-
         # create script
         scriptname = create_scripts(params, context)
 
