@@ -56,7 +56,7 @@ def read_ini_file():
 @after_setup_logger.connect
 def my_logging(sender, signal, logger, loglevel, logfile, format, colorize):
     # tweak root logger according to logging config from json file
-    if not os.path.exists(os.environ.get('BCCVL_CONFIG')):
+    if not os.path.exists(os.environ.get('BCCVL_CONFIG', '')):
         return
     # read logging config from ini file
     # remove current handlers
