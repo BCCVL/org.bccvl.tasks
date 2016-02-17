@@ -42,7 +42,7 @@ def read_ini_file():
 
     if ini.has_section('oauth'):
         config['oauth'] = {}
-        for (key, value) in ini.items['oauth']:
+        for (key, value) in ini.items('oauth'):
             provider, key = key.split('_', 1)
             if provider not in config['oauth']:
                 config['oauth'][provider] = {}
