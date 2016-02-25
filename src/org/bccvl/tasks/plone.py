@@ -243,6 +243,7 @@ def import_result(items, results_dir, context, **kw):
     # we have to create the dataset as well
     LOG.info("import results %s to %s", results_dir, context)
     transmogrifier = Transmogrifier(kw['_context'])
+    # FIXME: 'path': results_dir is not being used anymore
     transmogrifier(u'org.bccvl.compute.resultimport',
                    resultsource={'path': results_dir,
                                  'items': items})
