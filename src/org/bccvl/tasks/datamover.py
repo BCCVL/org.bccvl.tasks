@@ -306,7 +306,12 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                         'scientificName': species,
                     }
                 },
-                'filemetadata': data[species]['filemetadata']
+                'filemetadata': data[species]['filemetadata'],
+                '_partof': {
+                    # add back reference to orig dataset
+                    # TODO: shouldn't use absolute path here
+                    'path': context['context']
+                }
             }
             items.append(item)
         # start import process
