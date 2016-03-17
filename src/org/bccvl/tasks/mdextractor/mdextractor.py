@@ -393,8 +393,10 @@ class CSVExtractor(object):
         return self.from_fileob(csvfile)
 
     def from_archive(self, archivepath, path):
-        return
-
+        with zipfile.ZipFile(archivepath, mode='r') as zf:
+            fileobj = zf.open(path, mode='rU')
+            return self.from_fileob(fileobj)
+        
 
 class HachoirExtractor(object):
 

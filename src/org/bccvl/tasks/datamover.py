@@ -6,6 +6,7 @@ import logging
 import os.path
 import shutil
 import tempfile
+import zipfile
 
 from org.bccvl import movelib
 from org.bccvl.movelib.utils import build_source, build_destination
@@ -87,11 +88,11 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
             'description': ala_ds['description'],
             'file': {
                 'url': 'file://{}'.format(ala_csv),  # local file url
-                'contenttype': 'text/csv',
+                'contenttype': 'application/zip',
                 'filename': os.path.basename(ala_csv)
             },
             'bccvlmetadata': bccvlmd,
-            'filemetadata': extract_metadata(ala_csv, 'text/csv'),
+            'filemetadata': extract_metadata(ala_csv, 'application/zip'),
         }
 
         # move data file to destination and build data_url
