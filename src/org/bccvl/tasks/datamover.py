@@ -95,6 +95,13 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
             'filemetadata': extract_metadata(ala_csv, 'application/zip'),
         }
 
+        # Add the number of occurrence records to the metadata
+        # To do: This is a hack. Any better solution.
+        occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
+        if item['filemetadata'].has_key(occurrence_csv_filename) and item['filemetadata'][occurrence_csv_filename]['metadata'].has_key('rows'):
+            item['filemetadata']['rows'] = item['filemetadata'][occurrence_csv_filename]['metadata']['rows']
+
+
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(ala_csv))
         dst = build_destination(os.path.join(dest_url, os.path.basename(ala_csv)), app.conf.get('bccvl', {}))
