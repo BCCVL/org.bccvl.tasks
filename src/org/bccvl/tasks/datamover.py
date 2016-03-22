@@ -211,6 +211,11 @@ def update_metadata(url, filename, contenttype, context):
         item = {
             'filemetadata': extract_metadata(tmpfile, contenttype)
         }
+
+        # Check that there are lon and lat columns
+        if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
+            raise Exception("Missing 'lat'/'lon' column")
+
         set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
 
         import_job = import_file_metadata_job([item], url, context)
