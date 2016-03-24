@@ -486,7 +486,10 @@ def transfer_outputs(params, context):
     tp.map(upload_outputs, move_tasks)
     tp.close()
     tp.join()
-    # Store metadata for suceessful upload file
+    # Store metadata for suceessful upload file, and sort first by filename and then 
+    # order number so that file with same order number will be list alphabetically.
+    items.sort(key=lambda x: x['title'])
+    items.sort(key=lambda x: x['order'])
     return items
 
 def get_move_args(file_descr, params, context):
@@ -623,7 +626,8 @@ def createItem(fname, info, params):
         'description': info.get('title', u''),
         'bccvlmetadata': bccvlmd,
         'filemetadata': filemd,
-        'layermd': layermd
+        'layermd': layermd,
+        'order': info.get('order', 999999)
     }
 
 
