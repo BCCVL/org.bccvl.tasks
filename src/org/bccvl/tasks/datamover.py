@@ -213,8 +213,10 @@ def update_metadata(url, filename, contenttype, context):
         }
 
         # Check that there are lon and lat columns
-        if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
-            raise Exception("Missing 'lat'/'lon' column")
+        # if upload is of type csv, we validate column names as well
+        if contenttype == 'text/csv':
+            if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
+                raise Exception("Missing 'lat'/'lon' column")
 
         set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
 
