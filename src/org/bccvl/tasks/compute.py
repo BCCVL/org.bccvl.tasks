@@ -319,12 +319,16 @@ def transfer_inputs(params, context):
         if not isinstance(input_param, list):
             # if it's not a list of files make it so
             input_param = [input_param]
+
+        delete_files = []
         for ip in input_param:
             if ip is None:
                 continue
             # extract file from zip
             if 'zippath' in ip:
                 zipf = ZipFile(ip['filename'])
+                if ip['filename'] not in delete_files:
+                    delete_files.append(ip['filename'])
                 # extract next to zipfile
                 extractpath = os.path.dirname(ip['filename'])
                 zipf.extract(ip['zippath'], extractpath)
@@ -334,11 +338,16 @@ def transfer_inputs(params, context):
                 # TODO: this comparison is suboptimal
                 # if it's a zip and there is no zippath entry, we unpack the whole zipfile
                 zipf = ZipFile(ip['filename'])
+                if ip['filename'] not in delete_files:
+                    delete_files.append(ip['filename'])
                 extractpath = os.path.dirname(ip['filename'])
                 zipf.extractall(extractpath)
             # if it's not a zip, then there is nothing to do
-    # TODO: remove no longer needed zip files?
 
+        # Remove no longer needed zip files
+        for zf in delete_files:
+            if os.path.isfile(zf):
+                os.remove(zf)
 
 def create_scripts(params, context):
         scriptname = os.path.join(params['env']['scriptdir'],
