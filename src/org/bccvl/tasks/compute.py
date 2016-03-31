@@ -350,19 +350,19 @@ def transfer_inputs(params, context):
                 os.remove(zf)
 
 def create_scripts(params, context):
-        scriptname = os.path.join(params['env']['scriptdir'],
-                                  params['worker']['script']['name'])
-        scriptfile = open(scriptname, 'w')
-        scriptfile.write(params['worker']['script']['script'])
-        scriptfile.close()
-        # write params.json
-        jsonfile = open(os.path.join(params['env']['scriptdir'],
-                                     'params.json'),
-                        'w')
-        json.dump(params, jsonfile, default=decimal_encoder,
-                  sort_keys=True, indent=4)
-        jsonfile.close()
-        return scriptname
+    scriptname = os.path.join(params['env']['scriptdir'],
+                              params['worker']['script']['name'])
+    scriptfile = open(scriptname, 'w')
+    scriptfile.write(params['worker']['script']['script'])
+    scriptfile.close()
+    # write params.json
+    jsonfile = open(os.path.join(params['env']['scriptdir'],
+                                 'params.json'),
+                    'w')
+    json.dump(params, jsonfile, default=decimal_encoder,
+              sort_keys=True, indent=4)
+    jsonfile.close()
+    return scriptname
 
 def reproject_to_webmercator(params, context):
     # from celery.contrib import rdb; rdb.set_trace()
@@ -497,6 +497,7 @@ def transfer_outputs(params, context):
     tp.join()
     # Store metadata for suceessful upload file
     return items
+
 
 def get_move_args(file_descr, params, context):
     #
