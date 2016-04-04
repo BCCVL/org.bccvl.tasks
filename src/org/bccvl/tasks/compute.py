@@ -319,12 +319,16 @@ def transfer_inputs(params, context):
         if not isinstance(input_param, list):
             # if it's not a list of files make it so
             input_param = [input_param]
+
+        delete_files = []
         for ip in input_param:
             if ip is None:
                 continue
             # extract file from zip
             if 'zippath' in ip:
                 zipf = ZipFile(ip['filename'])
+                if ip['filename'] not in delete_files:
+                    delete_files.append(ip['filename'])
                 # extract next to zipfile
                 extractpath = os.path.dirname(ip['filename'])
                 zipf.extract(ip['zippath'], extractpath)
@@ -334,26 +338,31 @@ def transfer_inputs(params, context):
                 # TODO: this comparison is suboptimal
                 # if it's a zip and there is no zippath entry, we unpack the whole zipfile
                 zipf = ZipFile(ip['filename'])
+                if ip['filename'] not in delete_files:
+                    delete_files.append(ip['filename'])
                 extractpath = os.path.dirname(ip['filename'])
                 zipf.extractall(extractpath)
             # if it's not a zip, then there is nothing to do
-    # TODO: remove no longer needed zip files?
 
+        # Remove no longer needed zip files
+        for zf in delete_files:
+            if os.path.isfile(zf):
+                os.remove(zf)
 
 def create_scripts(params, context):
-        scriptname = os.path.join(params['env']['scriptdir'],
-                                  params['worker']['script']['name'])
-        scriptfile = open(scriptname, 'w')
-        scriptfile.write(params['worker']['script']['script'])
-        scriptfile.close()
-        # write params.json
-        jsonfile = open(os.path.join(params['env']['scriptdir'],
-                                     'params.json'),
-                        'w')
-        json.dump(params, jsonfile, default=decimal_encoder,
-                  sort_keys=True, indent=4)
-        jsonfile.close()
-        return scriptname
+    scriptname = os.path.join(params['env']['scriptdir'],
+                              params['worker']['script']['name'])
+    scriptfile = open(scriptname, 'w')
+    scriptfile.write(params['worker']['script']['script'])
+    scriptfile.close()
+    # write params.json
+    jsonfile = open(os.path.join(params['env']['scriptdir'],
+                                 'params.json'),
+                    'w')
+    json.dump(params, jsonfile, default=decimal_encoder,
+              sort_keys=True, indent=4)
+    jsonfile.close()
+    return scriptname
 
 def reproject_to_webmercator(params, context):
     # from celery.contrib import rdb; rdb.set_trace()
@@ -486,8 +495,12 @@ def transfer_outputs(params, context):
     tp.map(upload_outputs, move_tasks)
     tp.close()
     tp.join()
-    # Store metadata for suceessful upload file
+    # Store metadata for suceessful upload file, and sort first by filename and then 
+    # order number so that file with same order number will be list alphabetically.
+    items.sort(key=lambda x: x['title'])
+    items.sort(key=lambda x: x['order'])
     return items
+
 
 def get_move_args(file_descr, params, context):
     #
@@ -623,7 +636,8 @@ def createItem(fname, info, params):
         'description': info.get('title', u''),
         'bccvlmetadata': bccvlmd,
         'filemetadata': filemd,
-        'layermd': layermd
+        'layermd': layermd,
+        'order': info.get('order', 999999)
     }
 
 

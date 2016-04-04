@@ -361,13 +361,16 @@ class CSVExtractor(object):
                     continue
                 # we count only rows with data
                 count += 1
-                lat, lon = float(row[latidx]), float(row[lonidx])
-                bounds.update(
-                    bottom=min(lat, bounds['bottom']),
-                    left=min(lon, bounds['left']),
-                    top=max(lat, bounds['top']),
-                    right=max(lon, bounds['right'])
-                )
+                try:
+                    lat, lon = float(row[latidx]), float(row[lonidx])
+                    bounds.update(
+                        bottom=min(lat, bounds['bottom']),
+                        left=min(lon, bounds['left']),
+                        top=max(lat, bounds['top']),
+                        right=max(lon, bounds['right'])
+                    )
+                except Exception as ex:
+                    raise Exception("Invalid lat/lon value at line {}".format(count))
                 if speciesidx is not None:
                     species.add(safe_unicode(row[speciesidx]))
 
