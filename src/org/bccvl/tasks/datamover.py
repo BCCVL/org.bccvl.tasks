@@ -98,9 +98,11 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         # Add the number of occurrence records to the metadata
         # To do: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
-        if item['filemetadata'].has_key(occurrence_csv_filename) and item['filemetadata'][occurrence_csv_filename]['metadata'].has_key('rows'):
-            item['filemetadata']['rows'] = item['filemetadata'][occurrence_csv_filename]['metadata']['rows']
-
+        if occurrence_csv_filename in item['filemetadata']:
+            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
+                if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
+                    item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
 
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(ala_csv))
@@ -204,6 +206,7 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
+
 
 @app.task()
 def update_metadata(url, filename, contenttype, context):
