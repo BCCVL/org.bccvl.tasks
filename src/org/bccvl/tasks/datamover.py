@@ -250,6 +250,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
     # context ... the context with user and orig dataset
     try:
         set_progress('RUNNING', 'Split {0}'.format(url), None, context)
+        # step 1: update main dataset metadata
         tmpdir = tempfile.mkdtemp()
         fd, tmpfile = tempfile.mkstemp(dir=tmpdir)
         userid = context.get('user', {}).get('id')
@@ -257,6 +258,21 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         src = build_source(url, userid, settings)
         dst = build_destination('file://{}'.format(tmpfile), settings)
         movelib.move(src, dst)
+        item = {
+            'filemetadata': extract_metadata(tmpfile, "text/csv")
+        }
+
+        # Check that there are lon and lat columns
+        # if upload is of type csv, we validate column names as well
+        if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
+            raise Exception("Missing 'lat'/'lon' column")
+
+        set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
+
+        import_md_job = import_file_metadata_job([item], url, context)
+        import_md_job.link_error(set_progress_job("FAILED", "Metadata update failed for {0}".format(url), None, context))
+
+        # step 2: split csv file and create sub datasets
         # start reading csv file and create new datasets which will be linked up with dataset collection item
         # FIXME: large csv files should be streamed to seperate files (not read into ram like here)
         f = io.open(tmpfile, 'r')
@@ -340,7 +356,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         import_job.link_error(set_progress_job('FAILED', 'Multi species import failed', None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job('COMPLETED', 'Task succeeded', None, context)
-        (start_import | import_job | cleanup_job | finish_job).delay()
+        (start_import | import_md_job | import_job | cleanup_job | finish_job).delay()
         # FIXME: missing stuff...
         #        need to set multi species collection to finished at some stage
     except Exception as e:
