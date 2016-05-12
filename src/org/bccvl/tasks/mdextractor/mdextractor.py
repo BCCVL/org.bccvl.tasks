@@ -78,6 +78,9 @@ class ZipExtractor(object):
                 # all zip metadata collected, let's look at the data itself
                 extractor = MetadataExtractor()
                 # TODO: detect mime_type if possible first
+                # FIXME: this may be fragile; e.g. if mailcap package is not present, then new zip package ala import will fail
+                #        also: should we restrict ourselves to bag it format? (only files inside /data/ will be inspected
+                #              metadata.json or whatever could then be used to find out more about /data/ files before trying to extract metadata
                 mime, enc = mimetypes.guess_type(zipinfo.filename)
                 if mime:
                     if mime in ('application/zip', ):
@@ -146,7 +149,8 @@ class TiffExtractor(object):
         from osgeo import gdal, osr, gdalconst
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
 
-        # TODO: get bounding box
+        # TODO: get bounding box ... Geotransform used to convert from pixel to SRS
+        #       geotransform may be None?
         geotransform = ds.GetGeoTransform()
         projref = ds.GetProjectionRef()
         if not projref:
@@ -399,7 +403,7 @@ class CSVExtractor(object):
         with zipfile.ZipFile(archivepath, mode='r') as zf:
             fileobj = zf.open(path, mode='rU')
             return self.from_fileob(fileobj)
-        
+
 
 class HachoirExtractor(object):
 

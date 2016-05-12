@@ -57,7 +57,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
         # read ala metadata from attribution file
         ala_md = json.load(open(files['attribution']['url'], 'r'))
-        ala_csv = files['occurrence']['url']
+        ala_csv = files['occurrence']['url']  # this is actually a zip file now
 
         # build bccvl metadata:
         bccvlmd = {

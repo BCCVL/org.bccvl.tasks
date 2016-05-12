@@ -495,7 +495,7 @@ def transfer_outputs(params, context):
     tp.map(upload_outputs, move_tasks)
     tp.close()
     tp.join()
-    # Store metadata for suceessful upload file, and sort first by filename and then 
+    # Store metadata for suceessful upload file, and sort first by filename and then
     # order number so that file with same order number will be list alphabetically.
     items.sort(key=lambda x: x['title'])
     items.sort(key=lambda x: x['order'])
