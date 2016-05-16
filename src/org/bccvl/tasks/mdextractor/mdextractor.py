@@ -78,6 +78,9 @@ class ZipExtractor(object):
                 # all zip metadata collected, let's look at the data itself
                 extractor = MetadataExtractor()
                 # TODO: detect mime_type if possible first
+                # FIXME: this may be fragile; e.g. if mailcap package is not present, then new zip package ala import will fail
+                #        also: should we restrict ourselves to bag it format? (only files inside /data/ will be inspected
+                #              metadata.json or whatever could then be used to find out more about /data/ files before trying to extract metadata
                 mime, enc = mimetypes.guess_type(zipinfo.filename)
                 if mime:
                     if mime in ('application/zip', ):
@@ -146,7 +149,8 @@ class TiffExtractor(object):
         from osgeo import gdal, osr, gdalconst
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
 
-        # TODO: get bounding box
+        # TODO: get bounding box ... Geotransform used to convert from pixel to SRS
+        #       geotransform may be None?
         geotransform = ds.GetGeoTransform()
         projref = ds.GetProjectionRef()
         if not projref:
@@ -162,17 +166,13 @@ class TiffExtractor(object):
         # transform points into georeferenced coordinates
         left, top = self._geotransform(0.0, 0.0, geotransform)
         right, bottom = self._geotransform(ds.RasterXSize, ds.RasterYSize, geotransform)
-        # transform points to dataset projection coordinates
-        if not spref.IsLocal():
-            # TODO: check whether it really is not possible to transform local coordinate systems
-            spref_latlon = spref.CloneGeogCS()
-            trans = osr.CoordinateTransformation(spref_latlon, spref)
-            left, top, _ = trans.TransformPoint(left, top, 0)
-            right, bottom, _ = trans.TransformPoint(right, bottom, 0)
-            srs = '{0}:{1}'.format(spref.GetAuthorityName(None), # 'PROJCS', 'GEOGCS', 'GEOGCS|UNIT', None
-                                   spref.GetAuthorityCode(None))
-        else:
+        srs = (spref.GetAuthorityName(None), # 'PROJCS', 'GEOGCS', 'GEOGCS|UNIT', None
+               spref.GetAuthorityCode(None))
+        if None in srs:
             srs = None
+        else:
+            srs = '{0}:{1}'.format(*srs)
+
         # build metadata struct
         data = {
             'size': (ds.RasterXSize, ds.RasterYSize),
@@ -399,7 +399,7 @@ class CSVExtractor(object):
         with zipfile.ZipFile(archivepath, mode='r') as zf:
             fileobj = zf.open(path, mode='rU')
             return self.from_fileob(fileobj)
-        
+
 
 class HachoirExtractor(object):
 
