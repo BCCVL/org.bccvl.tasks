@@ -613,9 +613,11 @@ def createItem(fname, info, params):
                 if key in params:
                     bccvlmd[key] = params[key]
         elif genre == 'DataGenreSDMEval' and info.get('mimetype') == 'text/csv':
-            thresholds = extractThresholdValues(fname)
-            # FIXME: merge thresholds?
-            bccvlmd['thresholds'] = thresholds
+            # Only get threshold value as from the output of Sama's evaluation script
+            if fname.endswith('evaluation.summary.csv'):
+                thresholds = extractThresholdValues(fname)
+                # FIXME: merge thresholds?
+                bccvlmd['thresholds'] = thresholds
     # make sure we have a mimetype
     mimetype = info.get('mimetype', None)
     if mimetype is None:
@@ -640,65 +642,29 @@ def createItem(fname, info, params):
         'order': info.get('order', 999999)
     }
 
-
 def extractThresholdValues(fname):
-    # parse csv file and add threshold values as dict
-    # this method might be called multiple times for one item
-
-    # There are various formats:
-    #   combined.modelEvaluation: Threshold Name, Testing.data, Cutoff,
-    #                             Sensitivity, Specificity
-    #   biomod2.modelEvaluation: Threshold Name, Testing.data, Cutoff.*,
-    #                            Sensitivity.*, Specificity.*
-    #   maxentResults.csv: Species,<various columns with interesting values>
-    #                <threshold name><space><cumulative threshold,
-    #                              logistic threshold,area,training omission>
-    # FIXME: this is really ugly and csv format detection should be done
-    #        differently
     thresholds = {}
-    if fname.endswith('maxentResults.csv'):
-        csvfile = open(fname, 'r')
-        dictreader = DictReader(csvfile)
-        row = dictreader.next()
-        # There is only one row in maxentResults
-        namelist = (
-            'Fixed cumulative value 1', 'Fixed cumulative value 5',
-            'Fixed cumulative value 10', 'Minimum training presence',
-            '10 percentile training presence',
-            '10 percentile training presence',
-            'Equal training sensitivity and specificity',
-            'Maximum training sensitivity plus specificity',
-            'Balance training omission, predicted area and threshold value',
-            'Equate entropy of thresholded and original distributions')
-        for name in namelist:
-            # We extract only 'cumulative threshold'' values
-            threshold = '{} cumulative threshold'.format(name)
-            #thresholds[threshold] = Decimal(row[threshold])
-            thresholds[threshold] = row[threshold]
-    else:
-        # assume it's one of our biomod/dismo results
-        csvfile = open(fname, 'r')
-        dictreader = DictReader(csvfile)
-        # search the field with Cutoff
-        name = 'Cutoff'
-        for fieldname in dictreader.fieldnames:
-            if fieldname.startswith('Cutoff.'):
-                name = fieldname
-                break
-        try:
-            for row in dictreader:
+    # assume it's one of our biomod/dismo results
+    csvfile = open(fname, 'r')
+    dictreader = DictReader(csvfile)
+    # Only use the result from Sama's evaluation script.
+    # thereshold = best column, where type of loss = 'pos' (i.e. L.pos).
+    name = 'L.pos'
+    try:
+        for row in dictreader:
+            if row['type.of.loss'] == 'pos':
                 try:
-                    thresholds[row['']] = Decimal(row[name])
-                    thresholds[row['']] = row[name]
+                    thresholds[name] = Decimal(row['best'])
+                    thresholds[name] = row['best']
+                    break
                 except (TypeError, InvalidOperation) as e:
                     LOG.warn("Couldn't parse threshold value '%s' (%s) from"
                              "file '%s': %s",
-                             name, row[name], fname, repr(e))
-        except KeyError:
-            LOG.warn("Couldn't extract Threshold '%s' from file '%s'",
-                     name, fname)
+                             name, row['best'], fname, repr(e))
+    except KeyError:
+        LOG.warn("Couldn't extract Threshold '%s' from file '%s'",
+                 name, fname)
     return thresholds
-
 
 def guess_mimetype(name):
     # 1. try mimetype registry
