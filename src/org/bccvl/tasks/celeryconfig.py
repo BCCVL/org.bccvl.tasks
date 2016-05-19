@@ -94,6 +94,18 @@ CELERY_ROUTES = [
         }
     },
     {
+        "org.bccvl.tasks.datamover.pull_occurrences_from_aekos": {
+            "queue": "datamover",
+            "routing_key": "datamover"
+        }
+    },
+    {
+        "org.bccvl.tasks.datamover.pull_traits_from_aekos": {
+            "queue": "datamover",
+            "routing_key": "datamover"
+        }
+    },
+    {
         "org.bccvl.tasks.datamover.import_multi_species_csv": {
             "queue": "datamover",
             "routing_key": "datamover"
