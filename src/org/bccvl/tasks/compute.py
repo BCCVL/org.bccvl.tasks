@@ -614,7 +614,8 @@ def createItem(fname, info, params):
                     bccvlmd[key] = params[key]
         elif genre == 'DataGenreSDMEval' and info.get('mimetype') == 'text/csv':
             # Only get threshold value as from the output of Sama's evaluation script
-            if fname.endswith('evaluation.summary.csv'):
+            # FIXME: should not depend on file name (has already changed once and caused disappearance of threshold values in biodiverse)
+            if fname.endswith('Loss function intervals table.csv'):
                 thresholds = extractThresholdValues(fname)
                 # FIXME: merge thresholds?
                 bccvlmd['thresholds'] = thresholds
@@ -648,22 +649,15 @@ def extractThresholdValues(fname):
     csvfile = open(fname, 'r')
     dictreader = DictReader(csvfile)
     # Only use the result from Sama's evaluation script.
-    # thereshold = best column, where type of loss = 'pos' (i.e. L.pos).
-    name = 'L.pos'
-    try:
-        for row in dictreader:
-            if row['type.of.loss'] == 'pos':
-                try:
-                    thresholds[name] = Decimal(row['best'])
-                    thresholds[name] = row['best']
-                    break
-                except (TypeError, InvalidOperation) as e:
-                    LOG.warn("Couldn't parse threshold value '%s' (%s) from"
-                             "file '%s': %s",
-                             name, row['best'], fname, repr(e))
-    except KeyError:
-        LOG.warn("Couldn't extract Threshold '%s' from file '%s'",
-                 name, fname)
+    # row header is name of threshold, and best column used as value
+    # TODO: would be nice if threshold name column would have a column header as well
+    for row in dictreader:
+        try:
+            thresholds[row['']] = Decimal(row['best'])
+        except (TypeError, InvalidOperation) as e:
+            LOG.warn("Couldn't parse threshold value '%s' (%s) from"
+                     "file '%s': %s",
+                     row[''], row['best'], fname, repr(e))
     return thresholds
 
 def guess_mimetype(name):
