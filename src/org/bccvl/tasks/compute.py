@@ -654,6 +654,8 @@ def extractThresholdValues(fname):
     for row in dictreader:
         try:
             thresholds[row['']] = Decimal(row['best'])
+            # Decimal is not JSON serializable, so save as string
+            thresholds[row['']] = row['best']
         except (TypeError, InvalidOperation) as e:
             LOG.warn("Couldn't parse threshold value '%s' (%s) from"
                      "file '%s': %s",
