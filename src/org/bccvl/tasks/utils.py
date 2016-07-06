@@ -8,7 +8,7 @@ LOG = logging.getLogger(__name__)
 
 
 def set_progress(state, statusmsg, rusage, context):
-    app.signature("org.bccvl.tasks.plone.set_progress",
+    app.signature("org.bccvl.tasks.plone.tasks.set_progress",
                   kwargs={
                       'state': state,
                       'message': statusmsg,
@@ -18,7 +18,7 @@ def set_progress(state, statusmsg, rusage, context):
 
 
 def import_cleanup(results_dir, context):
-    app.signature("org.bccvl.tasks.plone.import_cleanup",
+    app.signature("org.bccvl.tasks.plone.tasks.import_cleanup",
                   kwargs={
                       'path': results_dir,
                       'context': context
@@ -26,7 +26,7 @@ def import_cleanup(results_dir, context):
 
 
 def set_progress_job(state, statusmsg, rusage, context):
-    return app.signature("org.bccvl.tasks.plone.set_progress",
+    return app.signature("org.bccvl.tasks.plone.tasks.set_progress",
                          kwargs={
                              'state': state,
                              'message': statusmsg,
@@ -37,7 +37,7 @@ def set_progress_job(state, statusmsg, rusage, context):
 
 
 def import_result_job(items, params, context):
-    return app.signature("org.bccvl.tasks.plone.import_result",
+    return app.signature("org.bccvl.tasks.plone.tasks.import_result",
                          kwargs={
                              'items': items,
                              'results_dir': params,
@@ -47,7 +47,7 @@ def import_result_job(items, params, context):
 
 
 def import_file_metadata_job(items, params, context):
-    return app.signature("org.bccvl.tasks.plone.import_file_metadata",
+    return app.signature("org.bccvl.tasks.plone.tasks.import_file_metadata",
                          kwargs={
                              'items': items,
                              'results_dir': params,
@@ -57,7 +57,7 @@ def import_file_metadata_job(items, params, context):
 
 
 def import_ala_job(items, params, context):
-    return app.signature("org.bccvl.tasks.plone.import_ala",
+    return app.signature("org.bccvl.tasks.plone.tasks.import_ala",
                          kwargs={
                              'items': items,
                              'results_dir': params,
@@ -67,7 +67,7 @@ def import_ala_job(items, params, context):
 
 
 def import_cleanup_job(results_dir, context):
-    return app.signature("org.bccvl.tasks.plone.import_cleanup",
+    return app.signature("org.bccvl.tasks.plone.tasks.import_cleanup",
                          kwargs={
                              'path': results_dir,
                              'context': context

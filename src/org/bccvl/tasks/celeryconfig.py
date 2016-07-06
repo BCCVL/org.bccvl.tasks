@@ -40,31 +40,37 @@ CELERY_IGNORE_RESULT = True
 
 CELERY_ROUTES = [
     {
-        "org.bccvl.tasks.plone.import_ala": {
+        "org.bccvl.tasks.plone.tasks.import_ala": {
             "queue": "plone",
             "routing_key": "plone"
         }
     },
     {
-        "org.bccvl.tasks.plone.import_cleanup": {
+        "org.bccvl.tasks.plone.tasks.import_cleanup": {
             "queue": "plone",
             "routing_key": "plone"
         }
     },
     {
-        "org.bccvl.tasks.plone.import_file_metadata": {
+        "org.bccvl.tasks.plone.tasks.import_file_metadata": {
             "queue": "plone",
             "routing_key": "plone"
         }
     },
     {
-        "org.bccvl.tasks.plone.import_result": {
+        "org.bccvl.tasks.plone.tasks.import_result": {
             "queue": "plone",
             "routing_key": "plone"
         }
     },
     {
-        "org.bccvl.tasks.plone.set_progress": {
+        "org.bccvl.tasks.plone.tasks.set_progress": {
+            "queue": "plone",
+            "routing_key": "plone"
+        }
+    },
+    {
+        "org.bccvl.tasks.plone.jobs.submit_experiment": {
             "queue": "plone",
             "routing_key": "plone"
         }

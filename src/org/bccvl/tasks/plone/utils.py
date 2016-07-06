@@ -1,19 +1,12 @@
-from __future__ import absolute_import
-from plone import api
-
-from org.bccvl.tasks.celery import app
+import functools
 import logging
-
-LOG = logging.getLogger(__name__)
-
+import os
+import sys
+from urlparse import urlsplit
 
 from celery import Task
 import transaction
-import sys
-import os
-import shutil
-import time
-from urlparse import urlparse
+
 from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import getSecurityManager
@@ -25,16 +18,38 @@ from ZPublisher.Publish import Retry as RetryException
 import Zope2
 from zope.event import notify
 from zope.app.publication.interfaces import BeforeTraverseEvent
-from zope.component import getUtility
 from zope.component.hooks import setSite, getSite
 # TODO: decide which one to use
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 #from Products.CMFCore.interfaces import ISiteRoot
-from org.bccvl.site.job.interfaces import IJobTracker, IJobUtility
-from org.bccvl.site.interfaces import IExperimentJobTracker
-import pkg_resources
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from plone import api
+
+from org.bccvl.tasks.celery import app
+
+
+LOG = logging.getLogger(__name__)
+
+
+def create_task_context(context, member=None):
+    if not member:
+        member = api.user.get_current()
+    req = None
+    if context.REQUEST:
+        other = ['VirtualRootPhysicalPath', 'SERVER_URL']  # 'VIRTUAL_URL', 'ACTUAL_URL', 'method', ...
+        environ = ['HTTP_HOST', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_PROTO', 'REMOTE_ADDR', 'REQUEST_METHOD', 'SCRIPT_NAME', 'SERVER_NAME', 'SERVER_PORT']  # HTTPS, SERVER_PORT_SECURE
+        req = {
+            'environ': {var: context.REQUEST._orig_env[var] for var in environ if var in context.REQUEST._orig_env},
+            'other': {var: context.REQUEST.other[var] for var in other if var in context.REQUEST.other}
+        }
+    return {
+        'request': req,
+        'context': '/'.join(context.getPhysicalPath()),
+        'user': {
+            'id': member.getUserName(),
+            'email': member.getProperty('email'),
+            'fullname': member.getProperty('fullname')
+        }
+    }
 
 
 class AfterCommitTask(Task):
@@ -95,7 +110,27 @@ def zope_task(**task_kw):
             sys.argv = ['']
             if 'ZOPE_CONFIG' not in os.environ:
                 os.environ['ZOPE_CONFIG'] = os.environ.get('Z_CONFIG_FILE', 'parts/instance/etc/zope.conf')
-            zapp = makerequest(Zope2.app())
+            ctxt = kw.get('context', {})
+            zapp = makerequest(Zope2.app(), environ=ctxt.get('request', {}).get('environ'))
+            # if we have a virtual path, update the request object with virtual host info
+            other = ctxt.get('request', {}).get('other', {})
+            if 'SERVER_URL' in other:
+                zapp.REQUEST.other['SERVER_URL'] = other['SERVER_URL']
+            if 'VirtualRootPhysicalPath' in other:
+                vrootpath = '/'.join(other['VirtualRootPhysicalPath']).encode('utf-8')  # encoding should be ascii?
+                vroot = zapp.unrestrictedTraverse(vrootpath)
+                # build list of parents
+                parents = []
+                while getattr(vroot, '__parent__', None):
+                    parents.append(vroot)
+                    vroot = vroot.__parent__
+                # update list of parents
+                # setVirtualRoot is meant to be called during traversal... set PARENTS in reverse order
+                zapp.REQUEST['PARENTS'] = list(reversed(parents))
+                # set virtual root (need 'PARENTS')
+                zapp.REQUEST.setVirtualRoot('/')  # vrootpath)
+                # set PARENTS in correct order (after traversal)
+                zapp.REQUEST['PARENTS'] = parents
 
             oldsm = getSecurityManager()
             oldsite = getSite()
@@ -107,7 +142,6 @@ def zope_task(**task_kw):
                         transaction.begin()
 
                         # assume zope context is always passed as kw
-                        ctxt = kw.get('context', {})
                         userid = ctxt['user']['id']
                         #-> split path components in
                         #   context['context_path'], convert to str and
@@ -182,7 +216,8 @@ def zope_task(**task_kw):
 
             return result
 
-        new_func.__name__ = func.__name__
+        functools.update_wrapper(new_func, func)
+        #new_func.__name__ = func.__name__
 
         aftercommit = task_kw.pop('aftercommit', False)
         task_kw['bind'] = True
@@ -191,129 +226,3 @@ def zope_task(**task_kw):
         else:
             return app.task(**task_kw)(new_func)
     return wrap
-
-
-# TODO: these jobs need to run near a zodb or plone instance
-@zope_task()
-def import_ala(items, results_dir, context, **kw):
-    from collective.transmogrifier.transmogrifier import Transmogrifier
-    # transmogrifier context needs to be the parent object, in case
-    # we have to create the dataset as well
-    LOG.info("import ala %s to %s", results_dir, context)
-    # transmogrifier context needs to be the parent folder
-    transmogrifier = Transmogrifier(kw['_context'].__parent__)
-    transmogrifier(u'org.bccvl.site.alaimport',
-                   contextsource={'path': results_dir,
-                                  'content_id': kw['_context'].getId(),
-                                  'items': items})
-
-
-# TODO: these jobs need to run near a zodb or plone instance
-@zope_task()
-def import_file_metadata(items, results_dir, context, **kw):
-    from collective.transmogrifier.transmogrifier import Transmogrifier
-    # transmogrifier context needs to be the parent object, in case
-    # we have to create the dataset as well
-    LOG.info("update metadata for %s,  %s", results_dir, context)
-    transmogrifier = Transmogrifier(kw['_context'].__parent__)
-    transmogrifier(u'org.bccvl.site.add_file_metadata',
-                   contextsource={'path': results_dir,
-                                  'content_id': kw['_context'].getId(),
-                                  'items': items})
-
-
-# TODO: this may not need a plone instance?
-# TODO: this task is not allowed to fail
-@app.task()
-def import_cleanup(path, context, **kw):
-    # In case a previous step failed we still have to clean up
-    # FIXME: may throw exception ...
-    #        just catch all exceptions ... log an error and continue as if nothing happened
-    path = urlparse(path).path
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    LOG.info("cleanup ala %s to %s", path, context)
-
-
-# TODO: maybe do cleanup here? and get rid of above task?
-@zope_task()
-def import_result(items, results_dir, context, **kw):
-    from collective.transmogrifier.transmogrifier import Transmogrifier
-    # transmogrifier context needs to be the parent object, in case
-    # we have to create the dataset as well
-    LOG.info("import results %s to %s", results_dir, context)
-    transmogrifier = Transmogrifier(kw['_context'])
-    # FIXME: 'path': results_dir is not being used anymore
-    transmogrifier(u'org.bccvl.compute.resultimport',
-                   resultsource={'path': results_dir,
-                                 'items': items})
-
-
-# TODO: this task is not allowed to fail
-@zope_task()
-def set_progress(state, message, rusage, context, **kw):
-    jobtool = getUtility(IJobUtility)
-    if '_jobid' in kw:
-        # TODO: should we do some security check here?
-        #       e.g. only admin and user who owns the job can update it?
-        # TODO: jobid may not exist
-        job = jobtool.get_job_by_id(kw['_jobid'])
-    else:
-        jt = IJobTracker(kw['_context'])
-        job = jt.get_job()
-    jobtool.set_progress(job, state, message, rusage)
-    if state in ('COMPLETED', 'FAILED'):
-        jobtool.set_state(job, state)
-        LOG.info("Plone: Update job state %s", state)
-
-        # FIXME: we sholud probably send emails in another place (or as additional task in chain?)
-        #        there are too many things that can go wrong here and this task is not allowed to
-        #        fail (throw an exception) otherwise the user will never see a status update
-        # FIXME: should be a better check here, we want to send email only
-        #        for experiment results, not for dataset imports (i.e. ala)
-        try:
-            if 'experiment' in context:
-                # Send email to notify results are ready
-                fullname = context['user']['fullname']
-                email_addr = context['user']['email']
-                experiment_name = context['experiment']['title']
-                experiment_url = context['experiment']['url']
-                success = (job.state == 'COMPLETED')
-                if fullname and email_addr and experiment_name and experiment_url:
-                    send_mail(fullname, email_addr, experiment_name, experiment_url, success)
-                else:
-                    LOG.warn("Not sending email. Invalid parameters")
-        except Exception as e:
-            LOG.error('Got an exception in plone.set_progress while trying to send an email: %s', e)
-    else:
-        jobtool.set_state(job, state)
-        LOG.info("Plone: Update job state RUNNING")
-    if not '_jobid' in kw:
-        kw['_context'].reindexObject() # TODO: reindex job state only?
-        # Compute the experiement run time if all its jobs are completed
-        # The experiment is the parent job
-        jt = IExperimentJobTracker(kw['_context'].__parent__, None)
-        if jt and jt.state in ('COMPLETED', 'FAILED'):
-            exp = jt.context
-            exp.runtime = time.time() - (exp.created().millis()/1000.0)
-    LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
-
-
-def send_mail(fullname, user_address, experiment_name, experiment_url, success):
-    if success:
-        job_status = 'completed'
-    else:
-        job_status = 'failed'
-
-    subject = "Your BCCVL experiment has %s" %job_status
-    body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
-    body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
-
-    htmlbody = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.html")
-    htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
-
-    msg = MIMEMultipart('alternative')
-    msg.attach(MIMEText(body, 'plain'))
-    msg.attach(MIMEText(htmlbody, 'html'))
-
-    api.portal.send_email(recipient=user_address, subject=subject, body=msg.as_string())
