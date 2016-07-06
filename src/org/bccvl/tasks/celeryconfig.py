@@ -70,25 +70,25 @@ CELERY_ROUTES = [
         }
     },
     {
-        "org.bccvl.tasks.datamover.tasks.move": {
+        "org.bccvl.tasks.datamover.ala.pull_occurrences_from_ala": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.tasks.pull_occurrences_from_ala": {
-            "queue": "datamover",
-            "routing_key": "datamover"
-        }
-    },
-    {
-        "org.bccvl.tasks.datamover.tasks.pull_occurrences_from_gbif": {
+        "org.bccvl.tasks.datamover.gbif.pull_occurrences_from_gbif": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
         "org.bccvl.tasks.datamover.tasks.import_multi_species_csv": {
+            "queue": "datamover",
+            "routing_key": "datamover"
+        }
+    },
+    {
+        "org.bccvl.tasks.datamover.tasks.move": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
