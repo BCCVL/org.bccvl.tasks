@@ -615,7 +615,7 @@ def createItem(fname, info, params):
         elif genre == 'DataGenreSDMEval' and info.get('mimetype') == 'text/csv':
             # Only get threshold value as from the output of Sama's evaluation script
             # FIXME: should not depend on file name (has already changed once and caused disappearance of threshold values in biodiverse)
-            if fname.endswith('Loss function intervals table.csv'):
+            if fname.endswith('Evaluation statistics.csv'):
                 thresholds = extractThresholdValues(fname)
                 # FIXME: merge thresholds?
                 bccvlmd['thresholds'] = thresholds
@@ -653,13 +653,14 @@ def extractThresholdValues(fname):
     # TODO: would be nice if threshold name column would have a column header as well
     for row in dictreader:
         try:
-            thresholds[row['']] = Decimal(row['best'])
+            # TODO: use a Decimal aware json serializer? (so we have correct number parsing and full precision)
+            #thresholds[row['']] = Decimal(row['maximize.sum.TPR.and.TNR'])
             # Decimal is not JSON serializable, so save as string
-            thresholds[row['']] = row['best']
+            thresholds[row['']] = row['maximize.sum.TPR.and.TNR']
         except (TypeError, InvalidOperation) as e:
             LOG.warn("Couldn't parse threshold value '%s' (%s) from"
                      "file '%s': %s",
-                     row[''], row['best'], fname, repr(e))
+                     row[''], row['maximize.sum.TPR.and.TNR'], fname, repr(e))
     return thresholds
 
 def guess_mimetype(name):
