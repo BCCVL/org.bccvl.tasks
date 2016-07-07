@@ -654,7 +654,8 @@ def extractThresholdValues(fname):
     # TODO: would be nice if threshold name column would have a column header as well
     for row in dictreader:
         try:
-            thresholds[row['']] = Decimal(row['best'])
+            # TODO: use Decimal aware json serialiser? (gives us validation as well)
+            #thresholds[row['']] = Decimal(row['best'])
             # Decimal is not JSON serializable, so save as string
             thresholds[row['']] = row['best']
         except (TypeError, InvalidOperation) as e:
