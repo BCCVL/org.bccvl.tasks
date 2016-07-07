@@ -643,6 +643,7 @@ def createItem(fname, info, params):
         'order': info.get('order', 999999)
     }
 
+
 def extractThresholdValues(fname):
     thresholds = {}
     # assume it's one of our biomod/dismo results
@@ -661,6 +662,7 @@ def extractThresholdValues(fname):
                      "file '%s': %s",
                      row[''], row['best'], fname, repr(e))
     return thresholds
+
 
 def guess_mimetype(name):
     # 1. try mimetype registry
