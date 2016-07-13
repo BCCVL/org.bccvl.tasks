@@ -5,6 +5,8 @@ import zipfile
 import uuid
 import mimetypes
 import json
+import os, os.path
+from osgeo import ogr
 
 
 def safe_unicode(value, encoding='utf-8'):
@@ -88,7 +90,30 @@ class ZipExtractor(object):
                         continue
                     ret[md['filename']]['metadata'] = \
                         extractor.from_archive(fileob.name, md['filename'], mime)
+                elif zipinfo.filename.endswith('.dbf'):
+                    # This handle the shape attribute file to extract the min/max value for each column.
+                    # Unzip file so that it can be read
+                    # TODO: what about gdb file, or spartial dataset?
+                    tmpdir = os.path.split(zipf.filename)[0]
+                    zipf.extractall(tmpdir)
 
+                    filepath = os.path.join(tmpdir, zipinfo.filename)
+                    # extract min and max from file for each column
+                    ds = ogr.Open(filepath)
+                    dl = ds.GetLayer(0)
+                    ld = dl.GetLayerDefn()
+                    layername = ld.GetName()
+
+                    layer_metadata = {}
+                    for i in range(ld.GetFieldCount()):
+                        fieldname = ld.GetFieldDefn(i).GetName()
+                        if fieldname == 'segmentno':
+                            continue 
+                        sql = "select min({name}), max({name}) from {layer}".format(name=fieldname, layer=layername)
+                        result = ds.ExecuteSQL(sql)
+                        row = result.next()
+                        layer_metadata[fieldname] = {'min': row.GetField(0), 'max': row.GetField(1)}
+                    ret[md['filename']]['metadata'] = layer_metadata
         return ret
 
     def from_file(self, path):
