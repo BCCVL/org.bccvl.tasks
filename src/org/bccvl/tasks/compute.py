@@ -643,6 +643,7 @@ def createItem(fname, info, params):
         'order': info.get('order', 999999)
     }
 
+
 def extractThresholdValues(fname):
     thresholds = {}
     # assume it's one of our biomod/dismo results
@@ -653,7 +654,10 @@ def extractThresholdValues(fname):
     # TODO: would be nice if threshold name column would have a column header as well
     for row in dictreader:
         try:
-            thresholds[row['']] = Decimal(row['best'])
+            if row[''] != 'Maximize TPR+TNR':
+                continue
+            # TODO: use Decimal aware json serialiser? (gives us validation as well)
+            #thresholds[row['']] = Decimal(row['best'])
             # Decimal is not JSON serializable, so save as string
             thresholds[row['']] = row['best']
         except (TypeError, InvalidOperation) as e:
@@ -661,6 +665,7 @@ def extractThresholdValues(fname):
                      "file '%s': %s",
                      row[''], row['best'], fname, repr(e))
     return thresholds
+
 
 def guess_mimetype(name):
     # 1. try mimetype registry
