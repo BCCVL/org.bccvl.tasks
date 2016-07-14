@@ -70,49 +70,43 @@ CELERY_ROUTES = [
         }
     },
     {
-        "org.bccvl.tasks.datamover.move": {
+        "org.bccvl.tasks.datamover.ala.pull_occurrences_from_ala": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.move": {
+        "org.bccvl.tasks.datamover.gbif.pull_occurrences_from_gbif": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.pull_occurrences_from_ala": {
+        "org.bccvl.tasks.datamover.tasks.import_multi_species_csv": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.pull_occurrences_from_gbif": {
+        "org.bccvl.tasks.datamover.tasks.move": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.pull_occurrences_from_aekos": {
+        "org.bccvl.tasks.datamover.tasks.update_metadata": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.pull_traits_from_aekos": {
+        "org.bccvl.tasks.datamover.aekos.pull_occurrences_from_aekos": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
     },
     {
-        "org.bccvl.tasks.datamover.import_multi_species_csv": {
-            "queue": "datamover",
-            "routing_key": "datamover"
-        }
-    },
-    {
-        "org.bccvl.tasks.datamover.update_metadata": {
+        "org.bccvl.tasks.datamover.aekos.pull_traits_from_aekos": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
