@@ -36,7 +36,7 @@ def create_task_context(context, member=None):
     req = None
     if context.REQUEST:
         other = ['VirtualRootPhysicalPath', 'SERVER_URL']  # 'VIRTUAL_URL', 'ACTUAL_URL', 'method', ...
-        environ = ['HTTP_HOST', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_PROTO', 'REMOTE_ADDR', 'REQUEST_METHOD', 'SCRIPT_NAME', 'SERVER_NAME', 'SERVER_PORT']  # HTTPS, SERVER_PORT_SECURE
+        environ = ['HTTP_HOST', 'HTTP_X_FORWARDED_HOST', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_PROTO', 'REMOTE_ADDR', 'REQUEST_METHOD', 'SCRIPT_NAME', 'SERVER_NAME', 'SERVER_PORT']  # HTTPS, SERVER_PORT_SECURE
         req = {
             'environ': {var: context.REQUEST._orig_env[var] for var in environ if var in context.REQUEST._orig_env},
             'other': {var: context.REQUEST.other[var] for var in other if var in context.REQUEST.other}

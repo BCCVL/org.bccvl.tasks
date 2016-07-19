@@ -15,7 +15,6 @@ LOG = logging.getLogger(__name__)
 def submit_experiment(context, **kw):
     experiment = kw['_context']
     expjt = IExperimentJobTracker(experiment)
-    from celery.contrib import rdb; rdb.set_trace()
     msgtype, msg = expjt.start_job(None)
 
     # TODO: check error from start_job?, catch exceptions?
