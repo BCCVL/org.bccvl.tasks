@@ -19,4 +19,5 @@ def submit_experiment(context, **kw):
 
     # TODO: check error from start_job?, catch exceptions?
     jt = IJobTracker(experiment)
-    jt.set_progress('COMPLETED', 'Experiment Submitted')
+    jt.state = 'COMPLETED'
+    jt.set_progress('COMPLETED', u'Experiment Submitted')
