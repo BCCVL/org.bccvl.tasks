@@ -68,12 +68,21 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
             'description': gbif_ds['description'],
             'file': {
                 'url': 'file://{}'.format(gbif_csv),  # local file url
-                'contenttype': 'text/csv',
+                'contenttype': 'application/zip',
                 'filename': os.path.basename(gbif_csv)
             },
             'bccvlmetadata': bccvlmd,
-            'filemetadata': extract_metadata(gbif_csv, 'text/csv'),
+            'filemetadata': extract_metadata(gbif_csv, 'application/zip'),
         }
+
+        # Add the number of occurrence records to the metadata
+        # To do: This is a hack. Any better solution.
+        occurrence_csv_filename = os.path.join('data', 'gbif_occurrence.csv')
+        if occurrence_csv_filename in item['filemetadata']:
+            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
+                if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
+                    item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
 
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(gbif_csv))
