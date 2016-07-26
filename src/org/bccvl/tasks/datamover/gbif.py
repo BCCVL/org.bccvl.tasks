@@ -16,7 +16,6 @@ from org.bccvl.tasks.utils import import_ala_job
 
 LOG = logging.getLogger(__name__)
 
-
 @app.task()
 def pull_occurrences_from_gbif(lsid, dest_url, context):
     # 1. set progress
