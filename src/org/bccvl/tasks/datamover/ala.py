@@ -76,7 +76,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         }
 
         # Add the number of occurrence records to the metadata
-        # To do: This is a hack. Any better solution.
+        # TODO: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
             # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
