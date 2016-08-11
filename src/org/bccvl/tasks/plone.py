@@ -273,16 +273,23 @@ def set_progress(state, message, rusage, context, **kw):
         #        for experiment results, not for dataset imports (i.e. ala)
         try:
             if 'experiment' in context:
-                # Send email to notify results are ready
-                fullname = context['user']['fullname']
-                email_addr = context['user']['email']
-                experiment_name = context['experiment']['title']
-                experiment_url = context['experiment']['url']
-                success = (job.state == 'COMPLETED')
-                if fullname and email_addr and experiment_name and experiment_url:
-                    send_mail(fullname, email_addr, experiment_name, experiment_url, success)
-                else:
-                    LOG.warn("Not sending email. Invalid parameters")
+                # check if this is the first or last result
+                jt = IExperimentJobTracker(kw['_context'].__parent__)
+                completed = [st for st in jt.states if st[1] in ('COMPLETED', 'FAILED')]
+                first = len(completed) == 1
+                last = jt.state in ('COMPLETED', 'FAILED', 'FINISHED')
+
+                if first or last:
+                    # send email
+                    fullname = context['user']['fullname']
+                    email_addr = context['user']['email']
+                    experiment_name = context['experiment']['title']
+                    experiment_url = context['experiment']['url']
+                    success = (job.state == 'COMPLETED')
+                    if fullname and email_addr and experiment_name and experiment_url:
+                        send_mail(fullname, email_addr, experiment_name, experiment_url, success)
+                    else:
+                        LOG.warn("Not sending email. Invalid parameters")
         except Exception as e:
             LOG.error('Got an exception in plone.set_progress while trying to send an email: %s', e)
     else:
