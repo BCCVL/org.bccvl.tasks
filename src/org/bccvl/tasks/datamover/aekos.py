@@ -21,7 +21,8 @@ LOG = logging.getLogger(__name__)
 @app.task()
 def pull_occurrences_from_aekos(species, dest_url, context):
     # 1. set progress
-    set_progress('RUNNING', 'Download {0} from aekos'.format(species), None, context)
+    set_progress('RUNNING', 'Download {0} from aekos'.format(
+        species), None, context)
     # 2. do move
     src = None
     dst = None
@@ -31,17 +32,21 @@ def pull_occurrences_from_aekos(species, dest_url, context):
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
-        set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(species), None, context)
+        set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(
+            species), None, context)
 
-        # FIXME: below needs to be updated once we know what an occurrence dataset from aekos looks like
+        # FIXME: below needs to be updated once we know what an occurrence
+        # dataset from aekos looks like
 
         # open aekos_dateset.json
-        aekos_ds = json.load(open(os.path.join(tmpdir, 'aekos_dataset.json'), 'r'))
+        aekos_ds = json.load(
+            open(os.path.join(tmpdir, 'aekos_dataset.json'), 'r'))
         # collect files inside ds per datatype
         files = dict(((f['dataset_type'], f) for f in aekos_ds['files']))
         # read aekos metadata from attribution file
-        aekos_md = json.load(open(files['attribution']['url'], 'r'))        
-        aekos_csv = files['occurrence']['url']  # this is actually a zip file now
+        aekos_md = json.load(open(files['attribution']['url'], 'r'))
+        # this is actually a zip file now
+        aekos_csv = files['occurrence']['url']
 
         # build bccvl metadata:
         bccvlmd = {
@@ -50,7 +55,7 @@ def pull_occurrences_from_aekos(species, dest_url, context):
             'species': {
                 'scientificName': traverse_dict(aekos_md, '0/scientificName'),
                 'taxonID': traverse_dict(aekos_md, '0/id'),
-                'rank': 'species')
+                'rank': 'species'
             },
         }
         # build item to import
@@ -70,27 +75,37 @@ def pull_occurrences_from_aekos(species, dest_url, context):
         # To do: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'aekos_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
-            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            # FIXME: copy all occurrence metadata to zip level, for backwards
+            # compatibility... this should go away after we fully support
+            # 'layered' occurrence zips.
             for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
                 if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
-                    item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
+                    item['filemetadata'][key] = item['filemetadata'][
+                        occurrence_csv_filename]['metadata'][key]
 
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(aekos_csv))
-        dst = build_destination(os.path.join(dest_url, os.path.basename(aekos_csv)), app.conf.get('bccvl', {}))
+        dst = build_destination(os.path.join(
+            dest_url, os.path.basename(aekos_csv)), app.conf.get('bccvl', {}))
         item['file']['url'] = dst['url']
         movelib.move(src, dst)
         # tell importer about new dataset (import it)
-        set_progress('RUNNING', 'Import aekos data {0}'.format(lsid), None, context)
+        set_progress('RUNNING', 'Import aekos data {0}'.format(
+            species), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
-        import_job.link_error(set_progress_job("FAILED", "Import of aekos data failed {0}".format(lsid), None, context))
+        import_job.link_error(set_progress_job(
+            "FAILED", "Import of aekos data failed {0}".format(species), None,
+            context))
         import_job.link_error(cleanup_job)
-        finish_job = set_progress_job("COMPLETED", 'AEKOS import {} complete'.format(lsid), None, context)
+        finish_job = set_progress_job(
+            "COMPLETED", 'AEKOS import {} complete'.format(species), None,
+            context)
         (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
-        set_progress('FAILED', 'Download {0} from aekos: {1}'.format(lsid, e), None, context)
+        set_progress('FAILED', 'Download {0} from aekos: {1}'.format(
+            species, e), None, context)
         import_cleanup(dest_url, context)
         LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
     finally:
@@ -101,7 +116,8 @@ def pull_occurrences_from_aekos(species, dest_url, context):
 @app.task()
 def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
     # 1. set progress
-    set_progress('RUNNING', 'Download {0} from aekos'.format(species), None, context)
+    set_progress('RUNNING', 'Download {0} from aekos'.format(
+        species), None, context)
     # 2. do move
     src = None
     dst = None
@@ -112,9 +128,11 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
-        set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(data), None, context)
+        set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(
+            data), None, context)
     except Exception as e:
-        set_progress('FAILED', 'Download Traits from aekos: {1}'.format(data, e), None, context)
+        set_progress('FAILED', 'Download Traits from aekos: {1}'.format(
+            data, e), None, context)
         import_cleanup(dest_url, context)
         LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
     finally:
