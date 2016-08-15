@@ -44,18 +44,18 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
             'genre': 'DataGenreSpeciesOccurrence',
             'categories': ['occurrence'],
             'species': {
-                'scientificName': traverse_dict(ala_md, 'classification/scientificName'),
+                'scientificName': traverse_dict(ala_md, 'taxonConcept/nameString'),
                 'vernacularName': traverse_dict(ala_md, 'commonNames/0/nameString'),
-                'taxonID': traverse_dict(ala_md, 'classification/guid'),
-                'rank': traverse_dict(ala_md, 'classification/rank'),
+                'taxonID': traverse_dict(ala_md, 'taxonConcept/guid'),
+                'rank': traverse_dict(ala_md, 'taxonConcept/rankString'),
                 'genus': traverse_dict(ala_md, 'classification/genus'),
                 'genusGuid': traverse_dict(ala_md, 'classification/genusGuid'),
                 'family': traverse_dict(ala_md, 'classification/family'),
                 'familyGuid': traverse_dict(ala_md, 'classification/familyGuid'),
                 'order': traverse_dict(ala_md, 'classification/order'),
                 'orderGuid': traverse_dict(ala_md, 'classification/orderGuid'),
-                'clazz': traverse_dict(ala_md, 'classification/clazz'),
-                'clazzGuid': traverse_dict(ala_md, 'classification/clazzGuid'),
+                'clazz': traverse_dict(ala_md, 'classification/class'),
+                'clazzGuid': traverse_dict(ala_md, 'classification/classGuid'),
                 'phylum': traverse_dict(ala_md, 'classification/phylum'),
                 'phylumGuid': traverse_dict(ala_md, 'classification/phylumGuid'),
                 'kingdom': traverse_dict(ala_md, 'classification/kingdom'),
@@ -76,7 +76,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         }
 
         # Add the number of occurrence records to the metadata
-        # To do: This is a hack. Any better solution.
+        # TODO: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
             # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
