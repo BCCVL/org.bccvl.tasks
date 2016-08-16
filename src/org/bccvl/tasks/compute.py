@@ -370,7 +370,7 @@ def reproject_to_webmercator(params, context):
     srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
 
     # Fetch the current and future projection files
-    srcfiles = [x for x in glob.iglob(os.path.join(srcpath, 'proj_', '*.tif'))
+    srcfiles = [x for x in glob.iglob(os.path.join(srcpath, 'proj_*', 'proj_*.tif'))
                if 'Clamping' not in x]
 
 
@@ -433,7 +433,7 @@ def transfer_projections(params, context, filelist):
     for srcpath in filelist:
         fname = 'current_projection.png'
         if not os.path.basename(srcpath).startswith('proj_current'):
-            fname = 'future_projection.png'
+            fname = '2085_projection.png'
         destpath = os.path.join(params['result']['results_dir'], fname)
         move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
