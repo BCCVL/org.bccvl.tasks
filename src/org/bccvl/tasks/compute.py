@@ -125,8 +125,9 @@ def run_script_SDM(wrapper, params, context):
         usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
-        # Reproject to Web Mercator
-        reproject_to_webmercator(params, context)
+        # Reproject using Web Mercator projection
+        proj_files = reproject_to_webmercator(params, context)
+
         # move results back
         errmsg = 'Fail to transfer results back'
         set_progress('RUNNING', 'Transferring outputs', usage, context)
@@ -134,7 +135,7 @@ def run_script_SDM(wrapper, params, context):
         write_status_to_nectar(params, context, u'TRANSFERRING')
 
         # Push the projection to nectar, for the wordpress site to fetch
-        transfer_afileout(params, context)
+        transfer_projections(params, context, proj_files)
 
         set_progress('COMPLETED', 'Task succeeded', None, context)
         # FIXME: remove me
@@ -365,16 +366,16 @@ def create_scripts(params, context):
     return scriptname
 
 def reproject_to_webmercator(params, context):
-    # from celery.contrib import rdb; rdb.set_trace()
     # TO-DO: Catch an exception if there isn't a .tif output file
     srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
-    # Fetch the original projection
-    # TODO: [0] may raise index error if there is no result?
-    srcfile = [x for x in glob.iglob(os.path.join(srcpath,
-                                                  'proj_current', '*.tif'))
-               if 'Clamping' not in x][0]
-    wmcfile = os.path.join(srcpath, 'webmcproj.tif')
-    destfile = '.'.join((os.path.splitext(srcfile)[0], '.png'))
+
+    # Fetch the current and future projection files
+    srcfiles = [x for x in glob.iglob(os.path.join(srcpath, 'proj_', '*.tif'))
+               if 'Clamping' not in x]
+
+
+    if len(srcfiles) < 2:
+        raise Exception("Projection failed: expected current and future projection, but {} found".format(len(srcfiles)))
 
     # Create a color file
     coltxt = ['1000 216 7 7 255', '900 232 16 16 255', '800 234 39 39 255',
@@ -386,22 +387,29 @@ def reproject_to_webmercator(params, context):
         for color in coltxt:
             f.write('%s\n' % color)
 
-    commreproj = ['/usr/bin/gdalwarp', '-s_srs', 'epsg:4326', '-t_srs', 'epsg:3857', srcfile, wmcfile]
-    commrelief = ['/usr/bin/gdaldem', 'color-relief', '-of', 'PNG', wmcfile, colsrc, destfile, '-alpha']
-
     scriptout = os.path.join(params['env']['outputdir'], params['worker']['script']['name'] + 'out')
     outfile = open(scriptout, 'w')
 
-    try:
-        proc = subprocess.Popen(commreproj, close_fds=True,
-                                stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid, 0)
-        proc = subprocess.Popen(commrelief, close_fds=True,
-                                stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid, 0)
-    except Exception as e:
-        raise
+    # Reproject using Web Mercator projection, and save as png file
+    destfiles =[]
+    for srcfile in srcfiles:
+        wmcfile = os.path.join(srcpath, 'webmcproj.tif')
+        destfile = os.path.splitext(srcfile)[0] + '.png'
+        destfiles.append(destfile)
 
+        commreproj = ['/usr/bin/gdalwarp', '-s_srs', 'epsg:4326', '-t_srs', 'epsg:3857', srcfile, wmcfile]
+        commrelief = ['/usr/bin/gdaldem', 'color-relief', '-of', 'PNG', wmcfile, colsrc, destfile, '-alpha']
+
+        try:
+            proc = subprocess.Popen(commreproj, close_fds=True,
+                                    stdout=outfile, stderr=subprocess.STDOUT)
+            rpid, ret, rusage = os.wait4(proc.pid, 0)
+            proc = subprocess.Popen(commrelief, close_fds=True,
+                                    stdout=outfile, stderr=subprocess.STDOUT)
+            rpid, ret, rusage = os.wait4(proc.pid, 0)
+        except Exception as e:
+            raise
+    return destfiles
 
 # FIXME: Remove Me
 def write_status_to_nectar(params, context, status):
@@ -418,16 +426,16 @@ def write_status_to_nectar(params, context, status):
     datamover.move(move_tasks, context)
 
 
-def transfer_afileout(params, context):
+def transfer_projections(params, context, filelist):
     # TO-DO: Catch an exception if there isn't a .tif output file
     # Fetch a tiff file that isn't a clamping mask
     move_tasks = []
-    srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'],
-                                                  'demoSDM',
-                                                  'proj_current', '*.png'))
-               if 'Clamping' not in x][0]
-    destpath = os.path.join(params['result']['results_dir'], 'projection.png')
-    move_tasks.append(('file://' + srcpath, destpath))
+    for srcpath in filelist:
+        fname = 'current_projection.png'
+        if not os.path.basename(srcpath).startswith('proj_current'):
+            fname = 'future_projection.png'
+        destpath = os.path.join(params['result']['results_dir'], fname)
+        move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
 
 def transfer_outputs(params, context):
@@ -512,10 +520,10 @@ def get_move_args(file_descr, params, context):
     parsedurl = urlsplit(src)
     # If it's an ala download for DemoSDM, pass ala url with no filename
     if parsedurl.scheme == 'ala':
-        # FIXME: does this really work?, do we have a uuid for direkt ala downloads?
+        # FIXME: does this really work?, do we have a uuid for direct ala downloads?
         destfile = inputdir
         dest = 'file://' + destfile
-        file_descr['filename'] = os.path.join(inputdir, 'ala_occurrence.csv')
+        file_descr['filename'] = os.path.join(inputdir, 'data', 'ala_occurrence.csv')
     else:
         # update params with local filename
         destfile = os.path.join(inputdir, file_descr['filename'])
