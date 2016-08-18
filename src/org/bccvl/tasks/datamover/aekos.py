@@ -121,10 +121,11 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
     # 2. do move
     src = None
     dst = None
-    data = {'traits': traits, 'species': species, 'envvars': envvars}
+    data = {'traitName': traits, 'speciesName': species, 'envVarName': envvars}
     try:
         tmpdir = tempfile.mkdtemp(prefix='aekos_download_')
-        src = build_source('aekos://traits?{}'.format(urllib.urlencode(data)))
+        src = build_source(
+            'aekos://traits?{}'.format(urllib.urlencode(data, doseq=True)))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
