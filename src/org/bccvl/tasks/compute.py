@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 import glob
 import json
 import mimetypes
+import datetime
 #from multiprocessing.pool import Pool
 from multiprocessing.pool import ThreadPool as Pool
 import os
@@ -97,6 +98,9 @@ def run_script_SDM(wrapper, params, context):
 
         # create script
         scriptname = create_scripts(params, context)
+
+        # push the projection metadata file
+        push_projection_info(params, context)
 
         # run the script
         errmsg = 'Fail to run experiment'
@@ -269,6 +273,61 @@ def run_script(wrapper, params, context):
         if path and os.path.exists(path):
             shutil.rmtree(path)
 
+def push_projection_info(params, context):
+    taxon_name = None
+    common_name = None
+    conserve_status = None
+
+    # load the species metatadata
+    mdfilepath = os.path.join(params['env']['inputdir'], params['params']['species_occurrence_dataset']['uuid'], 'ala_metadata.json')
+    metadata = json.load(open(mdfilepath))
+
+    # Get scientific name
+    taxon_name = (metadata.get('classification', {}).get('scientificName')
+                 or metadata.get('taxonConcept', {}).get('nameString')
+                 or metadata.get('taxonConcept', {}).get('nameComplete'))
+
+    # Get common name
+    for record in metadata['commonNames']:
+        if record['nameString'] is not None:
+            common_name = record['nameString']
+            break
+
+    # Get conservation status
+    records = metadata.get('conservationStatuses', {})
+    for key in records.keys():
+        if records[key].get('status', None):
+            conserve_status = records[key].get('status')
+            break;
+
+    md = { "common_name": common_name,
+           "scientific_name": taxon_name,
+           "guid": metadata.get('taxonConcept', {}).get('guid'),
+           "kingdom": metadata.get('classification', {}).get('kingdom'),
+           "class": metadata.get('classification', {}).get('class'),
+           "family": metadata.get('classification', {}).get('family'),
+           "conservationStatuses": conserve_status,
+           "run_date": datetime.datetime.now().strftime('%d/%m/%Y'),
+           "title": common_name or taxon_name,
+           "description": "Species Distribution Model and Climate Change projection using Maxent algorithm",
+           "current_proj_url": os.path.join(params['result']['results_dir'], 'current_projection.png'),
+           "future_proj_url": os.path.join(params['result']['results_dir'], '2085_projection.png'),
+           "algorithm": "Maxent",
+           "current_climate": "Australian Current Climate 1976 to 2005, 30arcsec (~1km)",
+           "future_climate": "Australian Climate Projection RCP85 based on UKMO-HADGEM1, 30arcsec (~1km) - 2085",
+           "gcm": "UKMO-HADGEM1",
+           "emission_scenario": "RCP85",
+           "projection_year": "current, 2085"
+    }
+
+    move_tasks = []
+    srcpath = os.path.join(params['env']['outputdir'], 'proj_metadata.json')
+    with open(srcpath, 'w') as f:
+        f.write(json.dumps(md, indent=4))
+
+    destpath = os.path.join(params['result']['results_dir'], 'proj_metadata.json')
+    move_tasks.append(('file://' + srcpath, destpath))
+    datamover.move(move_tasks, context)
 
 def create_workenv(params):
     ### create worker directories and update env section in params
