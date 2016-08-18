@@ -12,6 +12,7 @@ LOG = logging.getLogger(__name__)
 # TODO: early startup logs are usually not printed?
 #       need to setup logging as soon as possible?
 
+
 def read_ini_file():
     """
     Looks for environment variable CELER_JSON_CONFIG which should
@@ -61,13 +62,15 @@ def my_logging(sender, signal, logger, loglevel, logfile, format, colorize):
     # read logging config from ini file
     # remove current handlers
     logger.handlers = []
-    logging.config.fileConfig(os.environ['BCCVL_CONFIG'], disable_existing_loggers=False)
+    logging.config.fileConfig(
+        os.environ['BCCVL_CONFIG'], disable_existing_loggers=False)
 
 
 app = Celery()
 # load common package bundled settings
 app.config_from_object('org.bccvl.tasks.celeryconfig')
-app.conf.update(app.loader.read_configuration()) # reads from CELERY_CONFIG_MODULE
+# reads from CELERY_CONFIG_MODULE
+app.conf.update(app.loader.read_configuration())
 app.conf.update(read_ini_file())
 # check sentry config
 if 'sentry' in app.conf['bccvl']:
