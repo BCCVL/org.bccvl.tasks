@@ -99,9 +99,6 @@ def run_script_SDM(wrapper, params, context):
         # create script
         scriptname = create_scripts(params, context)
 
-        # push the projection metadata file
-        push_projection_info(params, context)
-
         # run the script
         errmsg = 'Fail to run experiment'
         set_progress('RUNNING', 'Executing job', None, context)
@@ -122,6 +119,8 @@ def run_script_SDM(wrapper, params, context):
         cmd = ["/bin/bash", "-l", "wrap.sh", scriptname]
         LOG.info("Executing: %s", ' '.join(cmd))
 
+        run_date = datetime.datetime.now().strftime('%d/%m/%Y')
+
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 close_fds=True,
                                 stdout=outfile, stderr=subprocess.STDOUT)
@@ -140,6 +139,9 @@ def run_script_SDM(wrapper, params, context):
 
         # Push the projection to nectar, for the wordpress site to fetch
         transfer_projections(params, context, proj_files)
+
+        # push the projection metadata file
+        push_projection_info(params, context, run_date)
 
         set_progress('COMPLETED', 'Task succeeded', None, context)
         # FIXME: remove me
@@ -273,7 +275,7 @@ def run_script(wrapper, params, context):
         if path and os.path.exists(path):
             shutil.rmtree(path)
 
-def push_projection_info(params, context):
+def push_projection_info(params, context, rundate):
     taxon_name = None
     common_name = None
     conserve_status = None
@@ -302,14 +304,14 @@ def push_projection_info(params, context):
 
     md = { "common_name": common_name,
            "scientific_name": taxon_name,
-           "guid": metadata.get('taxonConcept', {}).get('guid'),
+           "uuid": metadata.get('taxonConcept', {}).get('guid'),
            "kingdom": metadata.get('classification', {}).get('kingdom'),
            "class": metadata.get('classification', {}).get('class'),
            "family": metadata.get('classification', {}).get('family'),
            "conservationStatuses": conserve_status,
-           "run_date": datetime.datetime.now().strftime('%d/%m/%Y'),
+           "run_date": rundate,
            "title": common_name or taxon_name,
-           "description": "Species Distribution Model and Climate Change projection using Maxent algorithm",
+           "description": "Species Distribution Model and Climate Change projection of {} using Maxent algorithm.".format(common_name or taxon_name),
            "current_proj_url": os.path.join(params['result']['results_dir'], 'current_projection.png'),
            "future_proj_url": os.path.join(params['result']['results_dir'], '2085_projection.png'),
            "algorithm": "Maxent",
