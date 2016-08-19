@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 import glob
 import json
 import mimetypes
+import datetime
 #from multiprocessing.pool import Pool
 from multiprocessing.pool import ThreadPool as Pool
 import os
@@ -48,7 +49,7 @@ def zip_folder(archive, folder):
                 zfn = absfn[rootlen:]  # relative path to store in zip
                 zipf.write(absfn, zfn)
             if not files:
-                #NOTE: don't ignore empty directories
+                # NOTE: don't ignore empty directories
                 absdn = root
                 zdn = root[rootlen:]
                 zipf.write(absdn, zdn)
@@ -68,6 +69,7 @@ def perl_task(params, context):
     wrapper = resource_string('org.bccvl.tasks', 'perl_wrapper.sh')
     # 2. run task
     run_script(wrapper, params, context)
+
 
 @app.task()
 def demo_task(params, context):
@@ -98,6 +100,9 @@ def run_script_SDM(wrapper, params, context):
         # create script
         scriptname = create_scripts(params, context)
 
+        # push the projection metadata file
+        push_projection_info(params, context)
+
         # run the script
         errmsg = 'Fail to run experiment'
         set_progress('RUNNING', 'Executing job', None, context)
@@ -125,8 +130,9 @@ def run_script_SDM(wrapper, params, context):
         usage = get_rusage(rusage)
         # TODO: check whether ret and proc.returncode are the same
 
-        # Reproject to Web Mercator
-        reproject_to_webmercator(params, context)
+        # Reproject using Web Mercator projection
+        proj_files = reproject_to_webmercator(params, context)
+
         # move results back
         errmsg = 'Fail to transfer results back'
         set_progress('RUNNING', 'Transferring outputs', usage, context)
@@ -134,7 +140,7 @@ def run_script_SDM(wrapper, params, context):
         write_status_to_nectar(params, context, u'TRANSFERRING')
 
         # Push the projection to nectar, for the wordpress site to fetch
-        transfer_afileout(params, context)
+        transfer_projections(params, context, proj_files)
 
         set_progress('COMPLETED', 'Task succeeded', None, context)
         # FIXME: remove me
@@ -217,23 +223,28 @@ def run_script(wrapper, params, context):
         set_progress('RUNNING', 'Transferring outputs', usage, context)
         # TODO: maybe redesign this?
         #       transfer only uploads to destination and stores new url somewhere
-        #       and we do metadata extraction and item creation afterwards (here)?
+        # and we do metadata extraction and item creation afterwards (here)?
         items = transfer_outputs(params, context)
 
         # we are done here, hand over to result importer
         # build a chain of the remaining tasks
-        start_import = set_progress_job('RUNNING', 'Import results', None, context)
+        start_import = set_progress_job(
+            'RUNNING', 'Import results', None, context)
 
-        cleanup_job = import_cleanup_job(params['result']['results_dir'], context)
-        import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
+        cleanup_job = import_cleanup_job(
+            params['result']['results_dir'], context)
+        import_job = import_result_job(items, params['result'][
+                                       'results_dir'], context)
+        import_job.link_error(set_progress_job(
+            'FAILED', 'Result import failed', None, context))
         import_job.link_error(cleanup_job)
 
         if ret != 0:
             errmsg = 'Script execution failed with exit code {0}'.format(ret)
             finish_job = set_progress_job('FAILED', errmsg, None, context)
         else:
-            finish_job = set_progress_job('COMPLETED', 'Task succeeded', None, context)
+            finish_job = set_progress_job(
+                'COMPLETED', 'Task succeeded', None, context)
 
         (start_import | import_job | cleanup_job | finish_job).delay()
 
@@ -253,10 +264,13 @@ def run_script(wrapper, params, context):
         # log error message with exception and traceback
         LOG.exception(errmsg)
 
-        start_import = set_progress_job('RUNNING', 'Import results', None, context)
+        start_import = set_progress_job(
+            'RUNNING', 'Import results', None, context)
 
-        import_job = import_result_job(items, params['result']['results_dir'], context)
-        import_job.link_error(set_progress_job('FAILED', 'Result import failed', None, context))
+        import_job = import_result_job(items, params['result'][
+                                       'results_dir'], context)
+        import_job.link_error(set_progress_job(
+            'FAILED', 'Result import failed', None, context))
 
         finish_job = set_progress_job('FAILED', errmsg, None, context)
 
@@ -268,9 +282,64 @@ def run_script(wrapper, params, context):
         if path and os.path.exists(path):
             shutil.rmtree(path)
 
+def push_projection_info(params, context):
+    taxon_name = None
+    common_name = None
+    conserve_status = None
+
+    # load the species metatadata
+    mdfilepath = os.path.join(params['env']['inputdir'], params['params']['species_occurrence_dataset']['uuid'], 'ala_metadata.json')
+    metadata = json.load(open(mdfilepath))
+
+    # Get scientific name
+    taxon_name = (metadata.get('classification', {}).get('scientificName')
+                 or metadata.get('taxonConcept', {}).get('nameString')
+                 or metadata.get('taxonConcept', {}).get('nameComplete'))
+
+    # Get common name
+    for record in metadata['commonNames']:
+        if record['nameString'] is not None:
+            common_name = record['nameString']
+            break
+
+    # Get conservation status
+    records = metadata.get('conservationStatuses', {})
+    for key in records.keys():
+        if records[key].get('status', None):
+            conserve_status = records[key].get('status')
+            break;
+
+    md = { "common_name": common_name,
+           "scientific_name": taxon_name,
+           "guid": metadata.get('taxonConcept', {}).get('guid'),
+           "kingdom": metadata.get('classification', {}).get('kingdom'),
+           "class": metadata.get('classification', {}).get('class'),
+           "family": metadata.get('classification', {}).get('family'),
+           "conservationStatuses": conserve_status,
+           "run_date": datetime.datetime.now().strftime('%d/%m/%Y'),
+           "title": common_name or taxon_name,
+           "description": "Species Distribution Model and Climate Change projection using Maxent algorithm",
+           "current_proj_url": os.path.join(params['result']['results_dir'], 'current_projection.png'),
+           "future_proj_url": os.path.join(params['result']['results_dir'], '2085_projection.png'),
+           "algorithm": "Maxent",
+           "current_climate": "Australian Current Climate 1976 to 2005, 30arcsec (~1km)",
+           "future_climate": "Australian Climate Projection RCP85 based on UKMO-HADGEM1, 30arcsec (~1km) - 2085",
+           "gcm": "UKMO-HADGEM1",
+           "emission_scenario": "RCP85",
+           "projection_year": "current, 2085"
+    }
+
+    move_tasks = []
+    srcpath = os.path.join(params['env']['outputdir'], 'proj_metadata.json')
+    with open(srcpath, 'w') as f:
+        f.write(json.dumps(md, indent=4))
+
+    destpath = os.path.join(params['result']['results_dir'], 'proj_metadata.json')
+    move_tasks.append(('file://' + srcpath, destpath))
+    datamover.move(move_tasks, context)
 
 def create_workenv(params):
-    ### create worker directories and update env section in params
+    # create worker directories and update env section in params
     root = os.environ.get('WORKDIR') or os.environ.get('HOME', None)
     workdir = tempfile.mkdtemp(dir=root)
     params['env'].update({
@@ -336,7 +405,8 @@ def transfer_inputs(params, context):
                 ip['filename'] = os.path.join(extractpath, ip['zippath'])
             elif ip.get('filename', '').endswith('.zip'):
                 # TODO: this comparison is suboptimal
-                # if it's a zip and there is no zippath entry, we unpack the whole zipfile
+                # if it's a zip and there is no zippath entry, we unpack the
+                # whole zipfile
                 zipf = ZipFile(ip['filename'])
                 if ip['filename'] not in delete_files:
                     delete_files.append(ip['filename'])
@@ -348,6 +418,7 @@ def transfer_inputs(params, context):
         for zf in delete_files:
             if os.path.isfile(zf):
                 os.remove(zf)
+
 
 def create_scripts(params, context):
     scriptname = os.path.join(params['env']['scriptdir'],
@@ -364,17 +435,18 @@ def create_scripts(params, context):
     jsonfile.close()
     return scriptname
 
+
 def reproject_to_webmercator(params, context):
-    # from celery.contrib import rdb; rdb.set_trace()
     # TO-DO: Catch an exception if there isn't a .tif output file
     srcpath = os.path.join(params['env']['outputdir'], 'demoSDM')
-    # Fetch the original projection
-    # TODO: [0] may raise index error if there is no result?
-    srcfile = [x for x in glob.iglob(os.path.join(srcpath,
-                                                  'proj_current', '*.tif'))
-               if 'Clamping' not in x][0]
-    wmcfile = os.path.join(srcpath, 'webmcproj.tif')
-    destfile = '.'.join((os.path.splitext(srcfile)[0], '.png'))
+
+    # Fetch the current and future projection files
+    srcfiles = [x for x in glob.iglob(os.path.join(srcpath, 'proj_*', 'proj_*.tif'))
+               if 'Clamping' not in x]
+
+
+    if len(srcfiles) < 2:
+        raise Exception("Projection failed: expected current and future projection, but {} found".format(len(srcfiles)))
 
     # Create a color file
     coltxt = ['1000 216 7 7 255', '900 232 16 16 255', '800 234 39 39 255',
@@ -386,22 +458,29 @@ def reproject_to_webmercator(params, context):
         for color in coltxt:
             f.write('%s\n' % color)
 
-    commreproj = ['/usr/bin/gdalwarp', '-s_srs', 'epsg:4326', '-t_srs', 'epsg:3857', srcfile, wmcfile]
-    commrelief = ['/usr/bin/gdaldem', 'color-relief', '-of', 'PNG', wmcfile, colsrc, destfile, '-alpha']
-
     scriptout = os.path.join(params['env']['outputdir'], params['worker']['script']['name'] + 'out')
     outfile = open(scriptout, 'w')
 
-    try:
-        proc = subprocess.Popen(commreproj, close_fds=True,
-                                stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid, 0)
-        proc = subprocess.Popen(commrelief, close_fds=True,
-                                stdout=outfile, stderr=subprocess.STDOUT)
-        rpid, ret, rusage = os.wait4(proc.pid, 0)
-    except Exception as e:
-        raise
+    # Reproject using Web Mercator projection, and save as png file
+    destfiles =[]
+    for srcfile in srcfiles:
+        wmcfile = os.path.join(srcpath, 'webmcproj.tif')
+        destfile = os.path.splitext(srcfile)[0] + '.png'
+        destfiles.append(destfile)
 
+        commreproj = ['/usr/bin/gdalwarp', '-s_srs', 'epsg:4326', '-t_srs', 'epsg:3857', srcfile, wmcfile]
+        commrelief = ['/usr/bin/gdaldem', 'color-relief', '-of', 'PNG', wmcfile, colsrc, destfile, '-alpha']
+
+        try:
+            proc = subprocess.Popen(commreproj, close_fds=True,
+                                    stdout=outfile, stderr=subprocess.STDOUT)
+            rpid, ret, rusage = os.wait4(proc.pid, 0)
+            proc = subprocess.Popen(commrelief, close_fds=True,
+                                    stdout=outfile, stderr=subprocess.STDOUT)
+            rpid, ret, rusage = os.wait4(proc.pid, 0)
+        except Exception as e:
+            raise
+    return destfiles
 
 # FIXME: Remove Me
 def write_status_to_nectar(params, context, status):
@@ -418,17 +497,18 @@ def write_status_to_nectar(params, context, status):
     datamover.move(move_tasks, context)
 
 
-def transfer_afileout(params, context):
+def transfer_projections(params, context, filelist):
     # TO-DO: Catch an exception if there isn't a .tif output file
     # Fetch a tiff file that isn't a clamping mask
     move_tasks = []
-    srcpath = [x for x in glob.iglob(os.path.join(params['env']['outputdir'],
-                                                  'demoSDM',
-                                                  'proj_current', '*.png'))
-               if 'Clamping' not in x][0]
-    destpath = os.path.join(params['result']['results_dir'], 'projection.png')
-    move_tasks.append(('file://' + srcpath, destpath))
+    for srcpath in filelist:
+        fname = 'current_projection.png'
+        if not os.path.basename(srcpath).startswith('proj_current'):
+            fname = '2085_projection.png'
+        destpath = os.path.join(params['result']['results_dir'], fname)
+        move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
+
 
 def transfer_outputs(params, context):
     # items to import
@@ -454,7 +534,8 @@ def transfer_outputs(params, context):
         for fname in glob.glob(os.path.join(out_dir, fileglob)):
             if fname in filelist:
                 # generate metadat, upload file and collect import infos
-                # we import only if not marked as 'skip' and and not done already
+                # we import only if not marked as 'skip' and and not done
+                # already
                 if not filedef.get('skip', False):
                     items.append(createItem(fname, filedef, params['params']))
             filelist.discard(fname)
@@ -496,7 +577,8 @@ def transfer_outputs(params, context):
     tp.close()
     tp.join()
     # Store metadata for suceessful upload file, and sort first by filename and then
-    # order number so that file with same order number will be list alphabetically.
+    # order number so that file with same order number will be list
+    # alphabetically.
     items.sort(key=lambda x: x['title'])
     items.sort(key=lambda x: x['order'])
     return items
@@ -512,10 +594,10 @@ def get_move_args(file_descr, params, context):
     parsedurl = urlsplit(src)
     # If it's an ala download for DemoSDM, pass ala url with no filename
     if parsedurl.scheme == 'ala':
-        # FIXME: does this really work?, do we have a uuid for direkt ala downloads?
+        # FIXME: does this really work?, do we have a uuid for direct ala downloads?
         destfile = inputdir
         dest = 'file://' + destfile
-        file_descr['filename'] = os.path.join(inputdir, 'ala_occurrence.csv')
+        file_descr['filename'] = os.path.join(inputdir, 'data', 'ala_occurrence.csv')
     else:
         # update params with local filename
         destfile = os.path.join(inputdir, file_descr['filename'])
@@ -551,7 +633,8 @@ def get_rusage(rusage):
     # average stack segments: isrss/cputime
     # average resident set size: idrss/cputime
     # maybe I can get start time from subprocess object?
-    # elapsed=end (gettimeofday after wait) - start (gettimeofday call before fork)
+    # elapsed=end (gettimeofday after wait) - start (gettimeofday call before
+    # fork)
     return procstats
 
 
@@ -559,7 +642,8 @@ def download_input(move_args):
     src, dst = move_args['args']
     try:
         # set up the source and destination
-        source = build_source(src, move_args['userid'], app.conf.get('bccvl', {}))
+        source = build_source(
+            src, move_args['userid'], app.conf.get('bccvl', {}))
         destination = build_destination(dst)
         move(source, destination)
     except Exception as e:
@@ -600,21 +684,26 @@ def createItem(fname, info, params):
         bccvlmd['genre'] = genre
         if genre in ('DataGenreSDMModel', 'DataGenreCP', 'DataGenreClampingMask'):
             if genre == 'DataGenreClampingMask':
-                layermd = {'files': {name: {'layer': 'clamping_mask', 'data_type': 'Discrete'}}}
+                layermd = {
+                    'files': {name: {'layer': 'clamping_mask', 'data_type': 'Discrete'}}}
             elif genre == 'DataGenreCP':
                 if params['function'] in ('circles', 'convhull', 'voronoihull'):
-                    layermd = {'files': {name: {'layer': 'projection_binary', 'data_type': 'Continuous'}}}
+                    layermd = {
+                        'files': {name: {'layer': 'projection_binary', 'data_type': 'Continuous'}}}
                 elif params['function'] in ('maxent',):
-                    layermd = {'files': {name: {'layer': 'projection_suitablity', 'data_type': 'Continuous'}}}
+                    layermd = {
+                        'files': {name: {'layer': 'projection_suitablity', 'data_type': 'Continuous'}}}
                 else:
-                    layermd = {'files': {name: {'layer': 'projection_probability', 'data_type': 'Continuous'}}}
+                    layermd = {'files': {
+                        name: {'layer': 'projection_probability', 'data_type': 'Continuous'}}}
             # FIXME: find a cleaner way to attach metadata
             for key in ('year', 'month', 'emsc', 'gcm'):
                 if key in params:
                     bccvlmd[key] = params[key]
         elif genre == 'DataGenreSDMEval' and info.get('mimetype') == 'text/csv':
             # Only get threshold value as from the output of Sama's evaluation script
-            # FIXME: should not depend on file name (has already changed once and caused disappearance of threshold values in biodiverse)
+            # FIXME: should not depend on file name (has already changed once
+            # and caused disappearance of threshold values in biodiverse)
             if fname.endswith('Loss function intervals table.csv'):
                 thresholds = extractThresholdValues(fname)
                 # FIXME: merge thresholds?
@@ -651,7 +740,8 @@ def extractThresholdValues(fname):
     dictreader = DictReader(csvfile)
     # Only use the result from Sama's evaluation script.
     # row header is name of threshold, and best column used as value
-    # TODO: would be nice if threshold name column would have a column header as well
+    # TODO: would be nice if threshold name column would have a column header
+    # as well
     for row in dictreader:
         try:
             if row[''] != 'Maximize TPR+TNR':
