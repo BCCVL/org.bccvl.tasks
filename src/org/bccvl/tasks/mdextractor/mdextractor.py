@@ -17,7 +17,8 @@ def safe_unicode(value, encoding='utf-8'):
             value = value.decode('utf-8', 'replace')
         return value
 
-#@implementer(IMetadataExtractor)
+
+# @implementer(IMetadataExtractor)
 class MetadataExtractor(object):
 
     extractors = {}
@@ -80,14 +81,16 @@ class ZipExtractor(object):
                 # TODO: detect mime_type if possible first
                 # FIXME: this may be fragile; e.g. if mailcap package is not present, then new zip package ala import will fail
                 #        also: should we restrict ourselves to bag it format? (only files inside /data/ will be inspected
-                #              metadata.json or whatever could then be used to find out more about /data/ files before trying to extract metadata
+                # metadata.json or whatever could then be used to find out more
+                # about /data/ files before trying to extract metadata
                 mime, enc = mimetypes.guess_type(zipinfo.filename)
                 if mime:
                     if mime in ('application/zip', ):
                         # zip in zip ... don't recurse
                         continue
                     ret[md['filename']]['metadata'] = \
-                        extractor.from_archive(fileob.name, md['filename'], mime)
+                        extractor.from_archive(
+                            fileob.name, md['filename'], mime)
 
         return ret
 
@@ -156,7 +159,7 @@ class TiffExtractor(object):
         if not projref:
             # default to WGS84
             projref = osr.GetWellKnownGeogCSAsWKT('EPSG:4326')
-        spref = osr.SpatialReference(projref) # SRS
+        spref = osr.SpatialReference(projref)  # SRS
         # extract bbox
         #       see http://svn.osgeo.org/gdal/trunk/gdal/swig/python/samples/gdalinfo.py
         #       GDALInfoReportCorner
@@ -165,8 +168,9 @@ class TiffExtractor(object):
         # bbox in srs units
         # transform points into georeferenced coordinates
         left, top = self._geotransform(0.0, 0.0, geotransform)
-        right, bottom = self._geotransform(ds.RasterXSize, ds.RasterYSize, geotransform)
-        srs = (spref.GetAuthorityName(None), # 'PROJCS', 'GEOGCS', 'GEOGCS|UNIT', None
+        right, bottom = self._geotransform(
+            ds.RasterXSize, ds.RasterYSize, geotransform)
+        srs = (spref.GetAuthorityName(None),  # 'PROJCS', 'GEOGCS', 'GEOGCS|UNIT', None
                spref.GetAuthorityCode(None))
         if None in srs:
             srs = None
@@ -203,7 +207,8 @@ class TiffExtractor(object):
                     continue
                 # current item
 
-                # ARRAY_IS_ALT .. ARRAY_IS_ALT_TEXT, pick first one (value is array + array is ordered)
+                # ARRAY_IS_ALT .. ARRAY_IS_ALT_TEXT, pick first one (value is
+                # array + array is ordered)
 
                 # -> array elements don't have special markers :(
 
@@ -235,7 +240,7 @@ class TiffExtractor(object):
         #     ds.GetDriver().ds.GetMetadataItem(gdal.DMD_XXX)
 
         # Extract GDAL metadata
-        for numband in range(1, ds.RasterCount+1):
+        for numband in range(1, ds.RasterCount + 1):
             band = ds.GetRasterBand(numband)
             (min_, max_, mean, stddev) = band.ComputeStatistics(False)
             banddata = {
@@ -251,11 +256,11 @@ class TiffExtractor(object):
                 'nodata': band.GetNoDataValue(),
                 'size': (band.XSize, band.YSize),
                 'index': band.GetBand(),
-                #band.GetCategoryNames(), GetRasterCategoryNames() .. ?
-                #band.GetScale()
+                # band.GetCategoryNames(), GetRasterCategoryNames() .. ?
+                # band.GetScale()
             }
             banddata.update(band.GetMetadata())
-            if not 'band' in data:
+            if 'band' not in data:
                 data['band'] = []
             data['band'].append(banddata)
 
@@ -370,7 +375,8 @@ class CSVExtractor(object):
                         right=max(lon, bounds['right'])
                     )
                 except Exception:
-                    raise Exception("Invalid lat/lon value at line {}".format(count))
+                    raise Exception(
+                        "Invalid lat/lon value at line {}".format(count))
                 if speciesidx is not None:
                     species.add(safe_unicode(row[speciesidx]))
 
@@ -410,7 +416,7 @@ class HachoirExtractor(object):
         parser = guessParser(stream)
         from hachoir_metadata import extractMetadata
         ret = extractMetadata(parser)
-        #formated = md.exportPlaintext(line_prefix=u"")
+        # formated = md.exportPlaintext(line_prefix=u"")
         return ret
 
 
