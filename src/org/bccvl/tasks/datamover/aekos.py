@@ -131,6 +131,62 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
         # extract metadata and do other stuff....
         set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(
             data), None, context)
+ 
+        # open aekos_dateset.json
+        aekos_ds = json.load(
+            open(os.path.join(tmpdir, 'aekos_dataset.json'), 'r'))
+        # collect files inside ds per datatype
+        files = dict(((f['dataset_type'], f) for f in aekos_ds['files']))
+       
+        # this is actually a zip file now
+        aekos_csv = files['traits']['url']
+
+        # build item to import
+        item = {
+            #'title': aekos_ds['title'],
+            #'description': aekos_ds['description'],
+            'file': {
+                'url': 'file://{}'.format(aekos_csv),  # local file url
+                'contenttype': 'application/zip',
+                'filename': os.path.basename(aekos_csv)
+            },
+            #'bccvlmetadata': bccvlmd,
+            'filemetadata': extract_metadata(aekos_csv, 'application/zip'),
+        }
+
+        # Add the number of trait records to the metadata
+        # To do: This is a hack. Any better solution.
+        trait_csv_filename = os.path.join('data', 'aekos_traits_env.csv')
+        if trait_csv_filename in item['filemetadata']:
+            # FIXME: copy all occurrence metadata to zip level, for backwards
+            # compatibility... this should go away after we fully support
+            # 'layered' occurrence zips.
+            for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
+                if key in item['filemetadata'][trait_csv_filename]['metadata']:
+                    item['filemetadata'][key] = item['filemetadata'][
+                        trait_csv_filename]['metadata'][key]
+
+        # move data file to destination and build data_url
+        src = build_source('file://{}'.format(aekos_csv))
+        dst = build_destination(os.path.join(
+            dest_url, os.path.basename(aekos_csv)), app.conf.get('bccvl', {}))
+        item['file']['url'] = dst['url']
+        movelib.move(src, dst)
+        # tell importer about new dataset (import it)
+        set_progress('RUNNING', 'Import aekos data {0}'.format(
+            ','.join(species)), None, context)
+        cleanup_job = import_cleanup_job(dest_url, context)
+        import_job = import_ala_job([item], dest_url, context)
+        import_job.link_error(set_progress_job(
+            "FAILED", "Import of aekos data failed {0}".format(species), None,
+            context))
+        import_job.link_error(cleanup_job)
+        finish_job = set_progress_job(
+            "COMPLETED", 'AEKOS import {} complete'.format(species), None,
+            context)
+        (import_job | cleanup_job | finish_job).delay()
+
+
     except Exception as e:
         set_progress('FAILED', 'Download Traits from aekos: {1}'.format(
             data, e), None, context)
