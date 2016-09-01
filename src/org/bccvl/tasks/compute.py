@@ -710,6 +710,10 @@ def createItem(fname, info, params):
                 thresholds = extractThresholdValues(fname)
                 # FIXME: merge thresholds?
                 bccvlmd['thresholds'] = thresholds
+        elif genre == 'DataGenreBiodiverseOutput':
+            # Add in the srs and cellsize for Biodiverse
+            bccvlmd['srs'] = 'epsg:3577'
+            bccvlmd['cellsize'] = params['cluster_size']
     # make sure we have a mimetype
     mimetype = info.get('mimetype', None)
     if mimetype is None:
