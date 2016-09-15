@@ -20,9 +20,8 @@ def safe_unicode(value, encoding='utf-8'):
             value = value.decode('utf-8', 'replace')
         return value
 
-#@implementer(IMetadataExtractor)
 
-
+# @implementer(IMetadataExtractor)
 class MetadataExtractor(object):
 
     extractors = {}
@@ -289,7 +288,7 @@ class TiffExtractor(object):
                 # band.GetScale()
             }
             banddata.update(band.GetMetadata())
-            if not 'band' in data:
+            if 'band' not in data:
                 data['band'] = []
             data['band'].append(banddata)
 
@@ -445,7 +444,7 @@ class HachoirExtractor(object):
         parser = guessParser(stream)
         from hachoir_metadata import extractMetadata
         ret = extractMetadata(parser)
-        #formated = md.exportPlaintext(line_prefix=u"")
+        # formated = md.exportPlaintext(line_prefix=u"")
         return ret
 
 
