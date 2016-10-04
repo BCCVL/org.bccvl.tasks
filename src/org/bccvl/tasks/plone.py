@@ -323,4 +323,4 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
     msg.attach(MIMEText(body, 'plain'))
     msg.attach(MIMEText(htmlbody, 'html'))
 
-    api.portal.send_email(recipient=user_address, subject=subject, body=msg.as_string())
+    api.portal.send_email(sender='noreply.bccvl.org.au', recipient=user_address, subject=subject, body=msg.as_string())
