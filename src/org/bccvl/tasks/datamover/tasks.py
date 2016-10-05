@@ -24,7 +24,8 @@ def move(move_args, context):
     errmsgs = []
     for src, dest in move_args:
         try:
-            source = build_source(src, context['user']['id'], app.conf.get('bccvl', {}))
+            source = build_source(src, context['user']['id'],
+                                  app.conf.get('bccvl', {}))
             destination = build_destination(dest, app.conf.get('bccvl', {}))
             movelib.move(source, destination)
         except Exception as e:
@@ -58,7 +59,9 @@ def update_metadata(url, filename, contenttype, context):
                     or 'lon' not in item['filemetadata']['headers']):
                 raise Exception("Missing 'lat'/'lon' column")
 
-        set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
+        set_progress('RUNNING',
+                     'Import metadata for {0}'.format(url),
+                     None, context)
 
         import_job = import_file_metadata_job([item], url, context)
         import_job.link_error(set_progress_job(
@@ -69,7 +72,9 @@ def update_metadata(url, filename, contenttype, context):
             None, context)
         (import_job | finish_job).delay()
     except Exception as e:
-        set_progress('FAILED', 'Metadata update for {} failed: {}'.format(url, e), None, context)
+        set_progress('FAILED',
+                     'Metadata update for {} failed: {}'.format(url, e),
+                     None, context)
         LOG.error('Metadata update for %s failed: %s', url, e)
     finally:
         if tmpdir and os.path.exists(tmpdir):
@@ -102,7 +107,9 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                 or 'lon' not in item['filemetadata']['headers']):
             raise Exception("Missing 'lat'/'lon' column")
 
-        set_progress('RUNNING', 'Import metadata for {0}'.format(url), None, context)
+        set_progress('RUNNING',
+                     'Import metadata for {0}'.format(url),
+                     None, context)
 
         import_md_job = import_file_metadata_job([item], url, context)
         import_md_job.link_error(set_progress_job(
@@ -126,10 +133,11 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         for row in csvreader:
             if not row:
                 continue
-            species = row[speciesidx]
+            species = row[speciesidx].decode('utf-8', 'ignore')
             if species not in data:
                 # create new entry for species
-                fname = '{0}.csv'.format(species)
+                fname = u'{0}.csv'.format(species).replace(
+                    u'/', u'_').encode('ascii', 'ignore')
                 # TODO: make sure fname contains only legal filename characters
                 fpath = os.path.join(tmpdir, fname)
                 file = io.open(fpath, 'wb')
@@ -157,11 +165,14 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # send files to destination
         for species in data:
             src = build_source('file://{}'.format(data[species]['path']))
-            dst = build_destination(os.path.join(results_dir, data[species]['name']), app.conf.get('bccvl', {}))
+            dst = build_destination(os.path.join(results_dir,
+                                                 data[species]['name']),
+                                    app.conf.get('bccvl', {}))
             data[species]['url'] = dst['url']
             movelib.move(src, dst)
         # all files uploaded .... send import jobs
-        set_progress('RUNNING', 'Create datasets for {0}'.format(url), None, context)
+        set_progress('RUNNING', 'Create datasets for {0}'.format(
+            url), None, context)
         items = []
         for species in data:
             # build item
