@@ -54,7 +54,9 @@ def update_metadata(url, filename, contenttype, context):
         # Check that there are lon and lat columns
         # if upload is of type csv, we validate column names as well
         if contenttype == 'text/csv':
-            if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
+            if ('headers' not in item['filemetadata']
+                    or 'lat' not in item['filemetadata']['headers']
+                    or 'lon' not in item['filemetadata']['headers']):
                 raise Exception("Missing 'lat'/'lon' column")
 
         set_progress('RUNNING', 'Import metadata for {0}'.format(
@@ -62,9 +64,11 @@ def update_metadata(url, filename, contenttype, context):
 
         import_job = import_file_metadata_job([item], url, context)
         import_job.link_error(set_progress_job(
-            "FAILED", "Metadata update failed for {0}".format(url), None, context))
+            "FAILED", "Metadata update failed for {0}".format(url),
+            None, context))
         finish_job = set_progress_job(
-            "COMPLETED", 'Metadata update for {} complete'.format(url), None, context)
+            "COMPLETED", 'Metadata update for {} complete'.format(url),
+            None, context)
         (import_job | finish_job).delay()
     except Exception as e:
         set_progress('FAILED', 'Metadata update for {} failed: {}'.format(
@@ -96,7 +100,9 @@ def import_multi_species_csv(url, results_dir, import_context, context):
 
         # Check that there are lon and lat columns
         # if upload is of type csv, we validate column names as well
-        if 'headers' not in item['filemetadata'] or 'lat' not in item['filemetadata']['headers'] or 'lon' not in item['filemetadata']['headers']:
+        if ('headers' not in item['filemetadata']
+                or 'lat' not in item['filemetadata']['headers']
+                or 'lon' not in item['filemetadata']['headers']):
             raise Exception("Missing 'lat'/'lon' column")
 
         set_progress('RUNNING', 'Import metadata for {0}'.format(
@@ -104,13 +110,15 @@ def import_multi_species_csv(url, results_dir, import_context, context):
 
         import_md_job = import_file_metadata_job([item], url, context)
         import_md_job.link_error(set_progress_job(
-            "FAILED", "Metadata update failed for {0}".format(url), None, context))
+            "FAILED", "Metadata update failed for {0}".format(url),
+            None, context))
 
         # step 2: split csv file and create sub datasets
-        # start reading csv file and create new datasets which will be linked up with dataset collection item
+        # start reading csv file and create new datasets which will be
+        #       linked up with dataset collection item
         # FIXME: large csv files should be streamed to seperate files (not read
-        # into ram like here)
         f = io.open(tmpfile, 'r')
+        #        into ram like here)
         csvreader = csv.reader(f)
         headers = csvreader.next()
         if 'species' not in headers:
@@ -202,8 +210,10 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # FIXME: missing stuff...
         #        need to set multi species collection to finished at some stage
     except Exception as e:
-        set_progress('FAILED', 'Error while splitting Multi Species CSV {}: {}'.format(
-            url, e), None, context)
+        set_progress('FAILED',
+                     'Error while splitting Multi Species CSV {}: {}'.format(
+                         url, e),
+                     None, context)
         LOG.error('Multi species split for %s faild: %s', url, e)
     finally:
         if tmpdir and os.path.exists(tmpdir):
