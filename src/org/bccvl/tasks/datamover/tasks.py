@@ -103,6 +103,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # start reading csv file and create new datasets which will be linked up with dataset collection item
         # FIXME: large csv files should be streamed to seperate files (not read into ram like here)
         f = io.open(tmpfile, 'r')
+        f = io.open(tmpfile, 'rb')
         csvreader = csv.reader(f)
         headers = csvreader.next()
         if 'species' not in headers:
