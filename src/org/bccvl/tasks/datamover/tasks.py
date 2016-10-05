@@ -133,10 +133,11 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         for row in csvreader:
             if not row:
                 continue
-            species = row[speciesidx]
+            species = row[speciesidx].decode('utf-8', 'ignore')
             if species not in data:
                 # create new entry for species
-                fname = '{0}.csv'.format(species)
+                fname = u'{0}.csv'.format(species).replace(
+                    u'/', u'_').encode('ascii', 'ignore')
                 # TODO: make sure fname contains only legal filename characters
                 fpath = os.path.join(tmpdir, fname)
                 file = io.open(fpath, 'wb')
