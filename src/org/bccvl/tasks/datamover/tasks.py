@@ -177,7 +177,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         for species in data:
             # build item
             item = {
-                'title': '{0} occurrences'.format(species),
+                'title': u'{0} occurrences'.format(species),
                 'description': '',
                 'file': {
                     'url': data[species]['url'],
