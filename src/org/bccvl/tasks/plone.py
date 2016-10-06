@@ -51,7 +51,8 @@ class AfterCommitTask(Task):
         def hook(success):
             # TODO: maybe if apply fails try to send a state update failed
             if success:
-                # FIXME: this is the earliest possible place wher i can get a taskid
+                # FIXME: this is the earliest possible place wher i can get a
+                # taskid
                 super(AfterCommitTask, self).apply_async(*args, **kw)
         transaction.get().addAfterCommitHook(hook)
         # apply_async normally returns a deferred result object,
@@ -63,7 +64,8 @@ def after_commit_task(task, *args, **kw):
     def hook(success):
         if success:
             # TODO: maybe if apply fails try to send a state update failed
-            # FIXME: this is the earliest possible place wher i can get a taskid
+            # FIXME: this is the earliest possible place wher i can get a
+            # taskid
             result = task.apply_async(args=args, kwargs=kw)
     transaction.get().addAfterCommitHook(hook)
 
@@ -94,7 +96,8 @@ def zope_task(**task_kw):
             # from the main instance's zope.conf. XXX FIXME
             sys.argv = ['']
             if 'ZOPE_CONFIG' not in os.environ:
-                os.environ['ZOPE_CONFIG'] = os.environ.get('Z_CONFIG_FILE', 'parts/instance/etc/zope.conf')
+                os.environ['ZOPE_CONFIG'] = os.environ.get('Z_CONFIG_FILE',
+                                                           'parts/instance/etc/zope.conf')
             zapp = makerequest(Zope2.app())
 
             oldsm = getSecurityManager()
@@ -113,12 +116,14 @@ def zope_task(**task_kw):
                         #   context['context_path'], convert to str and
                         #   traverse each one separately checking the
                         #   result for ISiteRoot
-                        ctxt_path = ctxt['context'].strip().strip('/').split('/')
+                        ctxt_path = ctxt['context'].strip().strip(
+                            '/').split('/')
                         site = obj = zapp
                         for name in ctxt_path:
                             obj = obj.unrestrictedTraverse(str(name))
                             if IPloneSiteRoot.providedBy(obj):
-                                # fire traversal event so various things get set up
+                                # fire traversal event so various things get
+                                # set up
                                 site = obj
                                 notify(BeforeTraverseEvent(site, site.REQUEST))
                         # if we are still here, context has been found
@@ -152,7 +157,8 @@ def zope_task(**task_kw):
 
                         # commit transaction
                         transaction.commit()
-                        # seems like all wont well. let's jump out of retry loop
+                        # seems like all wont well. let's jump out of retry
+                        # loop
                         break
                     except retryable as e:
                         # On ZODB conflicts, retry using celery's mechanism
@@ -228,7 +234,8 @@ def import_file_metadata(items, results_dir, context, **kw):
 def import_cleanup(path, context, **kw):
     # In case a previous step failed we still have to clean up
     # FIXME: may throw exception ...
-    #        just catch all exceptions ... log an error and continue as if nothing happened
+    # just catch all exceptions ... log an error and continue as if nothing
+    # happened
     path = urlparse(path).path
     if os.path.exists(path):
         shutil.rmtree(path)
@@ -275,7 +282,8 @@ def set_progress(state, message, rusage, context, **kw):
             if 'experiment' in context:
                 # check if this is the first or last result
                 jt = IExperimentJobTracker(kw['_context'].__parent__)
-                completed = [st for st in jt.states if st[1] in ('COMPLETED', 'FAILED')]
+                completed = [st for st in jt.states
+                             if st[1] in ('COMPLETED', 'FAILED')]
                 first = len(completed) == 1
                 last = jt.state in ('COMPLETED', 'FAILED', 'FINISHED')
 
@@ -287,22 +295,24 @@ def set_progress(state, message, rusage, context, **kw):
                     experiment_url = context['experiment']['url']
                     success = (job.state == 'COMPLETED')
                     if fullname and email_addr and experiment_name and experiment_url:
-                        send_mail(fullname, email_addr, experiment_name, experiment_url, success)
+                        send_mail(fullname, email_addr,
+                                  experiment_name, experiment_url, success)
                     else:
                         LOG.warn("Not sending email. Invalid parameters")
         except Exception as e:
-            LOG.error('Got an exception in plone.set_progress while trying to send an email: %s', e)
+            LOG.error(
+                'Got an exception in plone.set_progress while trying to send an email: %s', e)
     else:
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state RUNNING")
     if not '_jobid' in kw:
-        kw['_context'].reindexObject() # TODO: reindex job state only?
+        kw['_context'].reindexObject()  # TODO: reindex job state only?
         # Compute the experiement run time if all its jobs are completed
         # The experiment is the parent job
         jt = IExperimentJobTracker(kw['_context'].__parent__, None)
         if jt and jt.state in ('COMPLETED', 'FAILED'):
             exp = jt.context
-            exp.runtime = time.time() - (exp.created().millis()/1000.0)
+            exp.runtime = time.time() - (exp.created().millis() / 1000.0)
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
 
 
@@ -312,15 +322,20 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
     else:
         job_status = 'failed'
 
-    subject = "Your BCCVL experiment has %s" %job_status
-    body = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.txt")
-    body = body.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
+    subject = "Your BCCVL experiment has %s" % job_status
+    body = pkg_resources.resource_string("org.bccvl.tasks",
+                                         "complete_email.txt")
+    body = body.format(fullname=fullname, experiment_name=experiment_name,
+                       job_status=job_status, experiment_url=experiment_url)
 
-    htmlbody = pkg_resources.resource_string("org.bccvl.tasks", "complete_email.html")
-    htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name, job_status=job_status, experiment_url=experiment_url)
+    htmlbody = pkg_resources.resource_string("org.bccvl.tasks",
+                                             "complete_email.html")
+    htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name,
+                               job_status=job_status, experiment_url=experiment_url)
 
     msg = MIMEMultipart('alternative')
     msg.attach(MIMEText(body, 'plain'))
     msg.attach(MIMEText(htmlbody, 'html'))
 
-    api.portal.send_email(sender='noreply.bccvl.org.au', recipient=user_address, subject=subject, body=msg.as_string())
+    api.portal.send_email(sender='noreply.bccvl.org.au',
+                          recipient=user_address, subject=subject, body=msg.as_string())
