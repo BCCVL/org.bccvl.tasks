@@ -14,6 +14,8 @@ from org.bccvl.tasks.utils import set_progress
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
 from org.bccvl.tasks.utils import import_file_metadata_job
 from org.bccvl.tasks.utils import import_result_job
+from org.bccvl.tasks.utils import UnicodeCSVReader
+from org.bccvl.tasks.utils import UnicodeCSVWriter
 
 
 LOG = logging.getLogger(__name__)
@@ -121,8 +123,8 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         #       linked up with dataset collection item
         # FIXME: large csv files should be streamed to seperate files (not read
         #        into ram like here)
-        f = io.open(tmpfile, 'rb')
-        csvreader = csv.reader(f)
+        f = io.open(tmpfile, 'r', encoding='utf-8', errors='ignore')
+        csvreader = UnicodeCSVReader(f)
         headers = csvreader.next()
         if 'species' not in headers:
             raise Exception('missing species column')
@@ -133,15 +135,15 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         for row in csvreader:
             if not row:
                 continue
-            species = row[speciesidx].decode('utf-8', 'ignore')
+            species = row[speciesidx]
             if species not in data:
                 # create new entry for species
                 fname = u'{0}.csv'.format(species).replace(
-                    u'/', u'_').encode('ascii', 'ignore')
+                    u'/', u'_').encode('idna')
                 # TODO: make sure fname contains only legal filename characters
                 fpath = os.path.join(tmpdir, fname)
                 file = io.open(fpath, 'wb')
-                fwriter = csv.writer(file)
+                fwriter = UnicodeCSVWriter(file)
                 fwriter.writerow(headers)
                 data[species] = {
                     'file': file,

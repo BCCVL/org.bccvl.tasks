@@ -1,21 +1,18 @@
-
-from io import BytesIO, StringIO
-import csv
-import zipfile
-import uuid
-import mimetypes
+import io
 import json
+import logging
+import mimetypes
+import os
+import os.path
+import uuid
+import zipfile
+
+from osgeo import ogr
+
+from .utils import safe_unicode, UnicodeCSVReader
 
 
-def safe_unicode(value, encoding='utf-8'):
-    if isinstance(value, unicode):
-        return value
-    elif isinstance(value, basestring):
-        try:
-            value = unicode(value, encoding)
-        except (UnicodeDecodeError):
-            value = value.decode('utf-8', 'replace')
-        return value
+LOG = logging.getLogger(__name__)
 
 
 # @implementer(IMetadataExtractor)
@@ -95,11 +92,11 @@ class ZipExtractor(object):
         return ret
 
     def from_file(self, path):
-        fileob = open(path, 'r')
+        fileob = io.open(path, 'rb')
         return self.from_fileob(fileob)
 
     def from_string(self, data):
-        bytesio = BytesIO(data)
+        bytesio = io.BytesIO(data)
         return self.from_fileob(bytesio)
 
 
@@ -341,8 +338,9 @@ class TiffExtractor(object):
 
 class CSVExtractor(object):
 
-    def from_fileob(self, bytesio):
-        csvreader = csv.reader(bytesio)
+    def from_fileob(self, stringio):
+        # CSV always expects ifle object that returns unicode???
+        csvreader = UnicodeCSVReader(stringio)
         headers = csvreader.next()
         bounds = {
             'bottom': float('Inf'),
@@ -374,11 +372,12 @@ class CSVExtractor(object):
                         top=max(lat, bounds['top']),
                         right=max(lon, bounds['right'])
                     )
-                except Exception:
+                except Exception as e:
+                    LOG.exception(e)
                     raise Exception(
                         "Invalid lat/lon value at line {}".format(count))
                 if speciesidx is not None:
-                    species.add(safe_unicode(row[speciesidx]))
+                    species.add(row[speciesidx])
 
             data['rows'] = count
             data['species'] = list(species)
@@ -391,19 +390,20 @@ class CSVExtractor(object):
         return data
 
     def from_file(self, path):
-        csvfile = open(path, 'rU')
+        csvfile = io.open(path, 'r', encoding='utf-8', errors='ignore')
         return self.from_fileob(csvfile)
 
     def from_string(self, data):
         # collect header names, and number of rows.
         # assume we have occurrence / absence file.
         # and find bounding box coordinates
-        csvfile = StringIO(data.decode('utf-8'))
+        csvfile = io.StringIO(data.decode('utf-8'))
         return self.from_fileob(csvfile)
 
     def from_archive(self, archivepath, path):
         with zipfile.ZipFile(archivepath, mode='r') as zf:
-            fileobj = zf.open(path, mode='rU')
+            fileobj = io.TextIOWrapper(io.BufferedReader(
+                zf.open(path, mode='rU')), encoding='utf-8', errors='ignore')
             return self.from_fileob(fileobj)
 
 

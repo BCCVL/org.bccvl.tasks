@@ -2,6 +2,7 @@ import logging
 
 from org.bccvl.tasks.celery import app
 from org.bccvl.tasks.mdextractor import MetadataExtractor
+from org.bccvl.tasks.mdextractor import UnicodeCSVReader, UnicodeCSVWriter
 
 
 LOG = logging.getLogger(__name__)
@@ -80,7 +81,8 @@ def extract_metadata(filepath, filect):
     try:
         return mdextractor.from_file(filepath, filect)
     except Exception as ex:
-        LOG.warn("Couldn't extract metadata from file: %s : %s", filepath, repr(ex))
+        LOG.warn("Couldn't extract metadata from file: %s : %s",
+                 filepath, repr(ex))
         raise
 
 
