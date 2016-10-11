@@ -17,7 +17,7 @@ setup(
     keywords='',
     author='',
     author_email='',
-    #url='http://svn.plone.org/svn/collective/',
+    # url='http://svn.plone.org/svn/collective/',
     license='GPL',
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -25,7 +25,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'setuptools',  # distribute
+        'setuptools',
         'celery',
         'org.bccvl.movelib',
     ],
