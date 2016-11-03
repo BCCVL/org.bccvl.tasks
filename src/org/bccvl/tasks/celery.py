@@ -51,6 +51,9 @@ def read_ini_file():
 
     if ini.has_section('sentry'):
         config['sentry'] = dict(ini.items('sentry'))
+
+    if ini.has_section('ala'):
+        config['ala'] = dict(ini.items('ala'))
     return {'bccvl': config}
 
 
