@@ -194,9 +194,9 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
 
             # Make a title & description
             imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
-            species_names = ', '.join([sp['scientificName'] for sp in species])
-            title = "{} occurrences".format(ds_names or species_names)
-            description = "Observed occurrences for {0}, imported from ALA on {1}".format((ds_names or species_names), imported_date)
+            ds_name = ', '.join(ds_names or [sp['scientificName'] for sp in species])
+            title = "{} occurrences".format(ds_name)
+            description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
 
         else:
             title = ala_ds['title']
