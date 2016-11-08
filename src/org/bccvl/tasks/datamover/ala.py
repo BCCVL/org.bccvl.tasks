@@ -58,30 +58,25 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         # collect files inside ds per datatype
         files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
         # read ala metadata from attribution file
-        ala_md = json.load(open(files['attribution']['url'], 'r'))
+        ala_md_list = json.load(open(files['attribution']['url'], 'r'))
         ala_csv = files['occurrence']['url']  # this is actually a zip file now
 
         # build bccvl metadata:
+        md = ala_md_list[0]
         bccvlmd = {
             'genre': 'DataGenreSpeciesOccurrence',
             'categories': ['occurrence'],
             'species': {
-                'scientificName': traverse_dict(ala_md, 'taxonConcept/nameString'),
-                'vernacularName': traverse_dict(ala_md, 'commonNames/0/nameString'),
-                'taxonID': traverse_dict(ala_md, 'taxonConcept/guid'),
-                'rank': traverse_dict(ala_md, 'taxonConcept/rankString'),
-                'genus': traverse_dict(ala_md, 'classification/genus'),
-                'genusGuid': traverse_dict(ala_md, 'classification/genusGuid'),
-                'family': traverse_dict(ala_md, 'classification/family'),
-                'familyGuid': traverse_dict(ala_md, 'classification/familyGuid'),
-                'order': traverse_dict(ala_md, 'classification/order'),
-                'orderGuid': traverse_dict(ala_md, 'classification/orderGuid'),
-                'clazz': traverse_dict(ala_md, 'classification/class'),
-                'clazzGuid': traverse_dict(ala_md, 'classification/classGuid'),
-                'phylum': traverse_dict(ala_md, 'classification/phylum'),
-                'phylumGuid': traverse_dict(ala_md, 'classification/phylumGuid'),
-                'kingdom': traverse_dict(ala_md, 'classification/kingdom'),
-                'kingdomGuid': traverse_dict(ala_md, 'classification/kingdomGuid')
+                        'scientificName': md.get('scientificName'),
+                        'vernacularName': md.get('commonNameSingle'),
+                        'taxonID': md.get('guid'),
+                        'rank': md.get('rank'),
+                        'genus': md.get('genus'),
+                        'family': md.get('family'),
+                        'order': md.get('order'),
+                        'clazz': md.get('classs'),
+                        'phylum': md.get('phylum'),
+                        'kingdom': md.get('kingdom')
             },
         }
         # build item to import
@@ -137,12 +132,14 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
     species = []   # a list of species metadata
 
     try:
+        ds_names = []
         for dataset in params:
             src = None
             dst = None
             occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
             query = "qid:{}".format(dataset['qid'])
             qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
+            ds_names.append(dataset['name'])
 
             # downlaod occurrence file
             # TODO: ignore file if not successfully download (exception), but continue??
@@ -157,29 +154,25 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
             ala_ds = json.load(open(os.path.join(tmpdir, 'ala_dataset.json'), 'r'))
             # collect files inside ds per datatype
             files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
-            # read ala metadata from attribution file
-            ala_md = json.load(open(files['attribution']['url'], 'r'))
+            # read ala metadata from attribution file. 
+            # May not have metadata for user uploaded dataset
+            ala_md_list = json.load(open(files['attribution']['url'], 'r'))
             ala_csv = files['occurrence']['url']  # this is actually a zip file now
 
             results.append(tmpdir)
-            species.append({
-                    'scientificName': traverse_dict(ala_md, 'taxonConcept/nameString'),
-                    'vernacularName': traverse_dict(ala_md, 'commonNames/0/nameString'),
-                    'taxonID': traverse_dict(ala_md, 'taxonConcept/guid'),
-                    'rank': traverse_dict(ala_md, 'taxonConcept/rankString'),
-                    'genus': traverse_dict(ala_md, 'classification/genus'),
-                    'genusGuid': traverse_dict(ala_md, 'classification/genusGuid'),
-                    'family': traverse_dict(ala_md, 'classification/family'),
-                    'familyGuid': traverse_dict(ala_md, 'classification/familyGuid'),
-                    'order': traverse_dict(ala_md, 'classification/order'),
-                    'orderGuid': traverse_dict(ala_md, 'classification/orderGuid'),
-                    'clazz': traverse_dict(ala_md, 'classification/class'),
-                    'clazzGuid': traverse_dict(ala_md, 'classification/classGuid'),
-                    'phylum': traverse_dict(ala_md, 'classification/phylum'),
-                    'phylumGuid': traverse_dict(ala_md, 'classification/phylumGuid'),
-                    'kingdom': traverse_dict(ala_md, 'classification/kingdom'),
-                    'kingdomGuid': traverse_dict(ala_md, 'classification/kingdomGuid')
-                })
+            for md in ala_md_list:
+                species.append({
+                        'scientificName': md.get('scientificName'),
+                        'vernacularName': md.get('commonNameSingle'),
+                        'taxonID': md.get('guid'),
+                        'rank': md.get('rank'),
+                        'genus': md.get('genus'),
+                        'family': md.get('family'),
+                        'order': md.get('order'),
+                        'clazz': md.get('classs'),
+                        'phylum': md.get('phylum'),
+                        'kingdom': md.get('kingdom')
+                    })
 
         if len(results) == 0:
             raise Exception("Occurrence dataset from ALA Spatial Portal has no record")
@@ -202,8 +195,8 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
             # Make a title & description
             imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
             species_names = ', '.join([sp['scientificName'] for sp in species])
-            title = "{} occurrences".format(species_names)
-            description = "Observed occurrences for {0}, imported from ALA on {1}".format(species_names, imported_date)
+            title = "{} occurrences".format(ds_names or species_names)
+            description = "Observed occurrences for {0}, imported from ALA on {1}".format((ds_names or species_names), imported_date)
 
         else:
             title = ala_ds['title']

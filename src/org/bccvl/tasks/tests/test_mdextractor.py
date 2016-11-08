@@ -39,9 +39,9 @@ class Test_csv_utf8(unittest.TestCase):
 
     # TODO: this test should go into movelib ?
     @mock.patch('org.bccvl.movelib.protocol.ala._download_metadata_for_lsid')
-    @mock.patch('org.bccvl.movelib.protocol.ala._download_occurrence_by_lsid')
+    @mock.patch('org.bccvl.movelib.protocol.ala._download_occurrence')
     def test_ala_utf8_move(self, mock_occur, mock_md):
-        def fetch_occur_data(lsid, dest):
+        def fetch_occur_data(download_url, dest):
             occur_file = os.path.join(dest, 'ala_occurrence.zip')
             shutil.copyfile(resource_filename(__name__, 'data.zip'),
                             occur_file)
@@ -53,7 +53,7 @@ class Test_csv_utf8(unittest.TestCase):
                      'name': 'ala_occurrence.zip',
                      'content_type': 'application/zip'}
 
-        def fetch_meta_data(lsid, dest):
+        def fetch_meta_data(lsid_list, dest):
             metadata_file = os.path.join(dest, 'ala_metadata.json')
             shutil.copyfile(resource_filename(__name__, 'data.json'),
                             metadata_file)
@@ -66,7 +66,11 @@ class Test_csv_utf8(unittest.TestCase):
 
         tmpdir = tempfile.mkdtemp()
         try:
-            movelib.move({'url': 'ala://ala?lsid=urn:lsid:biodiversity.org.au:apni.taxon:262359'},
+            occurrence_url = "http://biocache.ala.org.au/ws/occurrences/index/download"
+            query = "lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359"
+            qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
+            src_url = 'ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter)
+            movelib.move({'url': src_url},
                          {'url': 'file://{}'.format(tmpdir)})
             self.assertEqual(mock_occur.call_count, 1)
             self.assertEqual(mock_md.call_count, 1)
