@@ -36,6 +36,101 @@ def combine_csv(srcdirs, destdir, filename):
                 for row in csv_reader:
                     csv_writer.writerow(row)
 
+def download_occurrence_from_ala_by_qid(params, context):
+    results = []
+    species = []   # a list of species metadata
+    ds_names = []
+    for dataset in params:
+        src = None
+        dst = None
+        occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
+        query = "qid:{}".format(dataset['qid'])
+        qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
+        ds_names.append(dataset['name'])
+
+        # downlaod occurrence file
+        # TODO: ignore file if not successfully download (exception), but continue??
+        tmpdir = tempfile.mkdtemp(prefix='ala_download_')
+        src = build_source('ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter))
+        dst = build_destination('file://{}'.format(tmpdir))
+        movelib.move(src, dst)
+
+        # extract metadata and do other stuff....
+        set_progress('RUNNING', 'Extract metadata for {0} from ala'.format(dataset['name']), None, context)
+        # open ala_dateset.json
+        ala_ds = json.load(open(os.path.join(tmpdir, 'ala_dataset.json'), 'r'))
+        # collect files inside ds per datatype
+        files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
+        # read ala metadata from attribution file. 
+        # May not have metadata for user uploaded dataset
+        ala_md_list = json.load(open(files['attribution']['url'], 'r'))
+        ala_csv = files['occurrence']['url']  # this is actually a zip file now
+
+        results.append(tmpdir)
+        for md in ala_md_list:
+            species.append({
+                    'scientificName': md.get('scientificName'),
+                    'vernacularName': md.get('commonNameSingle'),
+                    'taxonID': md.get('guid'),
+                    'rank': md.get('rank'),
+                    'genus': md.get('genus'),
+                    'family': md.get('family'),
+                    'order': md.get('order'),
+                    'clazz': md.get('classs'),
+                    'phylum': md.get('phylum'),
+                    'kingdom': md.get('kingdom')
+                })
+
+    if len(results) == 0:
+        raise Exception("Occurrence dataset from ALA Spatial Portal has no record")
+
+    # Combine all the occurrence and citation files from each download
+    if len(results) > 1:
+        destdir = tempfile.mkdtemp(prefix='ala_download_')
+        results.append(destdir)
+        os.mkdir(os.path.join(destdir, 'data'))
+        combine_csv(results[:-1], destdir, 'data/ala_occurrence.csv')
+        combine_csv(results[:-1], destdir, 'data/ala_citation.csv')
+
+        # Zip it out and point to the new zip file
+        ala_csv = os.path.join(destdir, 'ala_occurrence.zip')
+        zip_occurrence_data(ala_csv, 
+                            os.path.join(destdir, 'data'),
+                            'ala_occurrence.csv', 
+                            'ala_citation.csv')
+
+        # Make a title & description
+        imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
+        ds_name = ', '.join(ds_names or [sp['scientificName'] for sp in species])
+        title = "{} occurrences".format(ds_name)
+        description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
+
+    else:
+        title = ala_ds['title']
+        description = ala_ds['description']
+
+    # build bccvl metadata:
+    bccvlmd = {
+        'genre': 'DataGenreSpeciesOccurrence',
+        'categories': ['occurrence'],
+        'species': species
+    }
+
+    # build item to import
+    item = {
+        'title': title,
+        'description': description,
+        'file': {
+            'url': 'file://{}'.format(ala_csv),  # local file url
+            'contenttype': 'application/zip',
+            'filename': os.path.basename(ala_csv)
+        },
+        'bccvlmetadata': bccvlmd,
+        'filemetadata': extract_metadata(ala_csv, 'application/zip'),
+    }
+    return (item, results)
+
+
 @app.task()
 def pull_occurrences_from_ala(lsid, dest_url, context):
     # 1. set progress
@@ -129,98 +224,12 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
     set_progress('RUNNING', 'Download occurrence dataset from ala', None, context)
     # 2. Download all the occurrence dataset in the params list
     results = []
-    species = []   # a list of species metadata
 
     try:
-        ds_names = []
-        for dataset in params:
-            src = None
-            dst = None
-            occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
-            query = "qid:{}".format(dataset['qid'])
-            qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
-            ds_names.append(dataset['name'])
+        item, results = download_occurrence_from_ala_by_qid(params, context)
 
-            # downlaod occurrence file
-            # TODO: ignore file if not successfully download (exception), but continue??
-            tmpdir = tempfile.mkdtemp(prefix='ala_download_')
-            src = build_source('ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter))
-            dst = build_destination('file://{}'.format(tmpdir))
-            movelib.move(src, dst)
-
-            # extract metadata and do other stuff....
-            set_progress('RUNNING', 'Extract metadata for {0} from ala'.format(dataset['name']), None, context)
-            # open ala_dateset.json
-            ala_ds = json.load(open(os.path.join(tmpdir, 'ala_dataset.json'), 'r'))
-            # collect files inside ds per datatype
-            files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
-            # read ala metadata from attribution file. 
-            # May not have metadata for user uploaded dataset
-            ala_md_list = json.load(open(files['attribution']['url'], 'r'))
-            ala_csv = files['occurrence']['url']  # this is actually a zip file now
-
-            results.append(tmpdir)
-            for md in ala_md_list:
-                species.append({
-                        'scientificName': md.get('scientificName'),
-                        'vernacularName': md.get('commonNameSingle'),
-                        'taxonID': md.get('guid'),
-                        'rank': md.get('rank'),
-                        'genus': md.get('genus'),
-                        'family': md.get('family'),
-                        'order': md.get('order'),
-                        'clazz': md.get('classs'),
-                        'phylum': md.get('phylum'),
-                        'kingdom': md.get('kingdom')
-                    })
-
-        if len(results) == 0:
-            raise Exception("Occurrence dataset from ALA Spatial Portal has no record")
-
-        # Combine all the occurrence and citation files from each download
-        if len(results) > 1:
-            destdir = tempfile.mkdtemp(prefix='ala_download_')
-            results.append(destdir)
-            os.mkdir(os.path.join(destdir, 'data'))
-            combine_csv(results[:-1], destdir, 'data/ala_occurrence.csv')
-            combine_csv(results[:-1], destdir, 'data/ala_citation.csv')
-
-            # Zip it out and point to the new zip file
-            ala_csv = os.path.join(destdir, 'ala_occurrence.zip')
-            zip_occurrence_data(ala_csv, 
-                                os.path.join(destdir, 'data'),
-                                'ala_occurrence.csv', 
-                                'ala_citation.csv')
-
-            # Make a title & description
-            imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
-            ds_name = ', '.join(ds_names or [sp['scientificName'] for sp in species])
-            title = "{} occurrences".format(ds_name)
-            description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
-
-        else:
-            title = ala_ds['title']
-            description = ala_ds['description']
-
-        # build bccvl metadata:
-        bccvlmd = {
-            'genre': 'DataGenreSpeciesOccurrence',
-            'categories': ['occurrence'],
-            'species': species
-        }
-
-        # build item to import
-        item = {
-            'title': title,
-            'description': description,
-            'file': {
-                'url': 'file://{}'.format(ala_csv),  # local file url
-                'contenttype': 'application/zip',
-                'filename': os.path.basename(ala_csv)
-            },
-            'bccvlmetadata': bccvlmd,
-            'filemetadata': extract_metadata(ala_csv, 'application/zip'),
-        }
+        # This is the zip file path of the occurrence dataset
+        ala_csv = item.get('file').get('url').split('file://')[1]
 
         # Add the number of occurrence records to the metadata
         # TODO: This is a hack. Any better solution.
