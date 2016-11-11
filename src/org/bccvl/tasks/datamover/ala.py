@@ -46,7 +46,7 @@ def download_occurrence_from_ala_by_qid(params, context):
         occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
         query = "qid:{}".format(dataset['qid'])
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
-        email = context['user']['email']
+        email = context.get('user', {}).get('email', '') 
         ds_names.append(dataset['name'])
 
         # downlaod occurrence file
@@ -143,7 +143,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         occurrence_url = "http://biocache.ala.org.au/ws/occurrences/index/download"
         query = "lsid:{}".format(lsid)
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
-        email = context['user']['email']
+        email = context.get('user', {}).get('email', '')
         tmpdir = tempfile.mkdtemp(prefix='ala_download_')
         src = build_source('ala://ala?url={}&query={}&filter={}&email={}'.format(occurrence_url, query, qfilter, email))
         dst = build_destination('file://{}'.format(tmpdir))
