@@ -59,7 +59,10 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
                     'qid': 'lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
                   }
                  ]
-        context = {}
+        context = { 'user': {
+                                'email': 'testuser@gmail.com'
+                            }
+                  }
 
         results = []
         try:

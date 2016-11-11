@@ -46,12 +46,13 @@ def download_occurrence_from_ala_by_qid(params, context):
         occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
         query = "qid:{}".format(dataset['qid'])
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
+        email = context['user']['email']
         ds_names.append(dataset['name'])
 
         # downlaod occurrence file
         # TODO: ignore file if not successfully download (exception), but continue??
         tmpdir = tempfile.mkdtemp(prefix='ala_download_')
-        src = build_source('ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter))
+        src = build_source('ala://ala?url={}&query={}&filter={}&email={}'.format(occurrence_url, query, qfilter, email))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
 
@@ -142,8 +143,9 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         occurrence_url = "http://biocache.ala.org.au/ws/occurrences/index/download"
         query = "lsid:{}".format(lsid)
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
+        email = context['user']['email']
         tmpdir = tempfile.mkdtemp(prefix='ala_download_')
-        src = build_source('ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter))
+        src = build_source('ala://ala?url={}&query={}&filter={}&email={}'.format(occurrence_url, query, qfilter, email))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....

@@ -69,7 +69,8 @@ class Test_csv_utf8(unittest.TestCase):
             occurrence_url = "http://biocache.ala.org.au/ws/occurrences/index/download"
             query = "lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359"
             qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
-            src_url = 'ala://ala?url={}&query={}&filter={}'.format(occurrence_url, query, qfilter)
+            email = "testuser@gmail.com"
+            src_url = 'ala://ala?url={}&query={}&filter={}&email={}'.format(occurrence_url, query, qfilter, email)
             movelib.move({'url': src_url},
                          {'url': 'file://{}'.format(tmpdir)})
             self.assertEqual(mock_occur.call_count, 1)
