@@ -43,8 +43,8 @@ def download_occurrence_from_ala_by_qid(params, context):
     for dataset in params:
         src = None
         dst = None
-        occurrence_url = dataset['url'].rstrip('/') + "/ws/occurrences/index/download"
-        query = "qid:{}".format(dataset['qid'])
+        occurrence_url = dataset['url'].rstrip('/') + "/occurrences/index/download"
+        query = dataset['query']    # This is expected to be qid:xxxxyyyy
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
         email = context.get('user', {}).get('email', '') 
         ds_names.append(dataset['name'])
