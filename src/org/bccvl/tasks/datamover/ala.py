@@ -20,14 +20,17 @@ from org.bccvl.tasks.utils import import_ala_job
 
 LOG = logging.getLogger(__name__)
 
-# Combine the specified csv files in the source directories
-def combine_csv(srcdirs, destdir, filename):
+# Combine the specified named csv file in the source directories
+def combine_csv(srcdirs, filename, destdir):
     with io.open(os.path.join(destdir, filename), mode='bw') as cf:
         csv_writer = csv.writer(cf)
         headers_written = False
 
         for srcdir in srcdirs:
-            with io.open(os.path.join(srcdir, filename), 'r') as f:
+            filepath = os.path.join(srcdir, filename)
+            if not os.path.isfile(filepath):
+                continue
+            with io.open(filepath, 'r') as f:
                 csv_reader = csv.reader(f)
                 headers = next(csv_reader)
                 if not headers_written:
@@ -90,15 +93,14 @@ def download_occurrence_from_ala_by_qid(params, context):
         destdir = tempfile.mkdtemp(prefix='ala_download_')
         results.append(destdir)
         os.mkdir(os.path.join(destdir, 'data'))
-        combine_csv(results[:-1], destdir, 'data/ala_occurrence.csv')
-        combine_csv(results[:-1], destdir, 'data/ala_citation.csv')
+        combine_csv(results[:-1], 'data/ala_occurrence.csv', destdir)
+        combine_csv(results[:-1], 'data/ala_citation.csv', destdir)
 
         # Zip it out and point to the new zip file
         ala_csv = os.path.join(destdir, 'ala_occurrence.zip')
         zip_occurrence_data(ala_csv, 
                             os.path.join(destdir, 'data'),
-                            'ala_occurrence.csv', 
-                            'ala_citation.csv')
+                            ['ala_occurrence.csv', 'ala_citation.csv'])
 
         # Make a title & description
         imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
@@ -260,7 +262,7 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
     except Exception as e:
         set_progress('FAILED', 'Download occurrence dataset from ALA Spatial Portal: {}'.format(e), None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
+        LOG.error('Download from %s to %s failed: %s', params, dest_url, e)
     finally:
         for tmpdir in results:
             if tmpdir and os.path.exists(tmpdir):

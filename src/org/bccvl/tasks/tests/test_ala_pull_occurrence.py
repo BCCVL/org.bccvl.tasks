@@ -51,12 +51,12 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
         params = [{ 
                     'name': 'test_data1',
                     'url': 'http://biocache.ala.org.au',
-                    'qid': 'lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
+                    'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
                   },
                   { 
                     'name': 'test_data2',
                     'url': 'http://biocache.ala.org.au',
-                    'qid': 'lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
+                    'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
                   }
                  ]
         context = { 'user': {
