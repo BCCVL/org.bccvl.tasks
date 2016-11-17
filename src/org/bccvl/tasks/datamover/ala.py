@@ -55,6 +55,8 @@ def download_occurrence_from_ala_by_qid(params, context):
         # downlaod occurrence file
         # TODO: ignore file if not successfully download (exception), but continue??
         tmpdir = tempfile.mkdtemp(prefix='ala_download_')
+        results.append(tmpdir)
+
         src = build_source('ala://ala?url={}&query={}&filter={}&email={}'.format(occurrence_url, query, qfilter, email))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
@@ -65,25 +67,27 @@ def download_occurrence_from_ala_by_qid(params, context):
         ala_ds = json.load(open(os.path.join(tmpdir, 'ala_dataset.json'), 'r'))
         # collect files inside ds per datatype
         files = dict(((f['dataset_type'], f) for f in ala_ds['files']))
-        # read ala metadata from attribution file. 
-        # May not have metadata for user uploaded dataset
-        ala_md_list = json.load(open(files['attribution']['url'], 'r'))
+
+        # occurrence data file
         ala_csv = files['occurrence']['url']  # this is actually a zip file now
 
-        results.append(tmpdir)
-        for md in ala_md_list:
-            species.append({
-                    'scientificName': md.get('scientificName'),
-                    'vernacularName': md.get('commonNameSingle'),
-                    'taxonID': md.get('guid'),
-                    'rank': md.get('rank'),
-                    'genus': md.get('genus'),
-                    'family': md.get('family'),
-                    'order': md.get('order'),
-                    'clazz': md.get('classs'),
-                    'phylum': md.get('phylum'),
-                    'kingdom': md.get('kingdom')
-                })
+        # read ala metadata from attribution file. 
+        # May not have metadata for user uploaded dataset
+        if files.get('attribution'):
+            ala_md_list = json.load(open(files['attribution']['url'], 'r'))    
+            for md in ala_md_list:
+                species.append({
+                        'scientificName': md.get('scientificName'),
+                        'vernacularName': md.get('commonNameSingle'),
+                        'taxonID': md.get('guid'),
+                        'rank': md.get('rank'),
+                        'genus': md.get('genus'),
+                        'family': md.get('family'),
+                        'order': md.get('order'),
+                        'clazz': md.get('classs'),
+                        'phylum': md.get('phylum'),
+                        'kingdom': md.get('kingdom')
+                    })
 
     if len(results) == 0:
         raise Exception("Occurrence dataset from ALA Spatial Portal has no record")
