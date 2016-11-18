@@ -255,12 +255,12 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
         movelib.move(src, dst)
 
         # tell importer about new dataset (import it)
-        set_progress("RUNNING", "Import dataset '{0}' from ALA Spatial Portal".format(title), None, context)
+        set_progress("RUNNING", "Import dataset '{0}' from ALA Spatial Portal".format(item['title']), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
-        import_job.link_error(set_progress_job("FAILED", "Import of dataset '{0}' from ALA Spartial Portal failed".format(title), None, context))
+        import_job.link_error(set_progress_job("FAILED", "Import of dataset '{0}' from ALA Spartial Portal failed".format(item['title']), None, context))
         import_job.link_error(cleanup_job)
-        finish_job = set_progress_job("COMPLETED", "ALA import '{}' complete".format(title), None, context)
+        finish_job = set_progress_job("COMPLETED", "ALA import '{}' complete".format(item['title']), None, context)
         (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
