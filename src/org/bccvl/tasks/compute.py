@@ -684,11 +684,11 @@ def createItem(fname, info, params):
     genre = info.get('genre', None)
     if genre:
         bccvlmd['genre'] = genre
-        if genre in ('DataGenreSDMModel', 'DataGenreCP', 'DataGenreClampingMask'):
+        if genre in ('DataGenreSDMModel', 'DataGenreCP', 'DataGenreCP_ENVLOP', 'DataGenreClampingMask'):
             if genre == 'DataGenreClampingMask':
                 layermd = {
                     'files': {name: {'layer': 'clamping_mask', 'data_type': 'Discrete'}}}
-            elif genre == 'DataGenreCP':
+            elif genre in ('DataGenreCP', 'DataGenreCP_ENVLOP'):
                 if params['function'] in ('circles', 'convhull', 'voronoihull'):
                     layermd = {
                         'files': {name: {'layer': 'projection_binary', 'data_type': 'Continuous'}}}
