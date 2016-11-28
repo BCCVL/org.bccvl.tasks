@@ -46,6 +46,7 @@ def download_occurrence_from_ala_by_qid(params, context):
     results = []
     species = []   # a list of species metadata
     ds_names = []
+
     for dataset in params:
         src = None
         dst = None
@@ -81,7 +82,7 @@ def download_occurrence_from_ala_by_qid(params, context):
             for md in ala_md_list:
                 species.append({
                     'scientificName': md.get('scientificName'),
-                    'vernacularName': md.get('commonNameSingle'),
+                    'vernacularName': md.get('commonNameSingle') or md.get('scientificName'),
                     'taxonID': md.get('guid'),
                     'rank': md.get('rank'),
                     'genus': md.get('genus'),
@@ -174,7 +175,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
             'categories': ['occurrence'],
             'species': {
                 'scientificName': md.get('scientificName'),
-                'vernacularName': md.get('commonNameSingle'),
+                'vernacularName': md.get('commonNameSingle') or md.get('scientificName'),
                 'taxonID': md.get('guid'),
                 'rank': md.get('rank'),
                 'genus': md.get('genus'),
