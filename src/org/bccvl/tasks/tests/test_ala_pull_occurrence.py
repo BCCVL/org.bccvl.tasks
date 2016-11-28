@@ -4,7 +4,7 @@ import shutil
 import tempfile
 import unittest
 import zipfile
-import filecmp
+from itertools import izip
 import pkg_resources
 
 import mock
@@ -43,6 +43,14 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
         def do_nothing(state, statusmsg, rusage, context):
             return
 
+        def areFilesIdentical(filename1, filename2):
+            with open(filename1, "rtU") as a:
+                with open(filename2, "rtU") as b:
+                    # Note that "all" and "izip" are lazy
+                    # (will stop at the first line that's not identical)
+                    return all(lineA == lineB
+                        for lineA, lineB in izip(a.xreadlines(), b.xreadlines()))
+
         mock_occur.side_effect = fetch_occur_data
         mock_md.side_effect = fetch_meta_data
         mock_setprogress.side_effect = do_nothing
@@ -79,9 +87,9 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
 
             # Check final occurrence file
             self.assertEqual(item.get('title'), 'test_data1, test_data2 occurrences')
-            self.assertTrue(filecmp.cmp(os.path.join(results[2], 'data', 'ala_occurrence.csv'), 
+            self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_occurrence.csv'), 
                                         pkg_resources.resource_filename(__name__, 'ala_occurrence.csv')))
-            self.assertTrue(filecmp.cmp(os.path.join(results[2], 'data', 'ala_citation.csv'), 
+            self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_citation.csv'), 
                                         pkg_resources.resource_filename(__name__, 'ala_citation.csv')))
 
         finally:
