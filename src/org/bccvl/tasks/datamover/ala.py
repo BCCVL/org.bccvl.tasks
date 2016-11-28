@@ -21,6 +21,8 @@ from org.bccvl.tasks.utils import import_ala_job
 LOG = logging.getLogger(__name__)
 
 # Combine the specified named csv file in the source directories
+
+
 def combine_csv(srcdirs, filename, destdir):
     with io.open(os.path.join(destdir, filename), mode='bw') as cf:
         csv_writer = csv.writer(cf)
@@ -39,6 +41,7 @@ def combine_csv(srcdirs, filename, destdir):
                 for row in csv_reader:
                     csv_writer.writerow(row)
 
+
 def download_occurrence_from_ala_by_qid(params, context):
     results = []
     species = []   # a list of species metadata
@@ -49,7 +52,7 @@ def download_occurrence_from_ala_by_qid(params, context):
         occurrence_url = dataset['url'].rstrip('/') + "/occurrences/index/download"
         query = dataset['query']    # This is expected to be qid:xxxxyyyy
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
-        email = context.get('user', {}).get('email', '') 
+        email = context.get('user', {}).get('email', '')
         ds_names.append(dataset['name'])
 
         # downlaod occurrence file
@@ -71,23 +74,23 @@ def download_occurrence_from_ala_by_qid(params, context):
         # occurrence data file
         ala_csv = files['occurrence']['url']  # this is actually a zip file now
 
-        # read ala metadata from attribution file. 
+        # read ala metadata from attribution file.
         # May not have metadata for user uploaded dataset
         if files.get('attribution'):
-            ala_md_list = json.load(open(files['attribution']['url'], 'r'))    
+            ala_md_list = json.load(open(files['attribution']['url'], 'r'))
             for md in ala_md_list:
                 species.append({
-                        'scientificName': md.get('scientificName'),
-                        'vernacularName': md.get('commonNameSingle'),
-                        'taxonID': md.get('guid'),
-                        'rank': md.get('rank'),
-                        'genus': md.get('genus'),
-                        'family': md.get('family'),
-                        'order': md.get('order'),
-                        'clazz': md.get('classs'),
-                        'phylum': md.get('phylum'),
-                        'kingdom': md.get('kingdom')
-                    })
+                    'scientificName': md.get('scientificName'),
+                    'vernacularName': md.get('commonNameSingle'),
+                    'taxonID': md.get('guid'),
+                    'rank': md.get('rank'),
+                    'genus': md.get('genus'),
+                    'family': md.get('family'),
+                    'order': md.get('order'),
+                    'clazz': md.get('classs'),
+                    'phylum': md.get('phylum'),
+                    'kingdom': md.get('kingdom')
+                })
 
     if len(results) == 0:
         raise Exception("Occurrence dataset from ALA Spatial Portal has no record")
@@ -102,7 +105,7 @@ def download_occurrence_from_ala_by_qid(params, context):
 
         # Zip it out and point to the new zip file
         ala_csv = os.path.join(destdir, 'ala_occurrence.zip')
-        zip_occurrence_data(ala_csv, 
+        zip_occurrence_data(ala_csv,
                             os.path.join(destdir, 'data'),
                             ['ala_occurrence.csv', 'ala_citation.csv'])
 
@@ -170,16 +173,16 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
             'genre': 'DataGenreSpeciesOccurrence',
             'categories': ['occurrence'],
             'species': {
-                        'scientificName': md.get('scientificName'),
-                        'vernacularName': md.get('commonNameSingle'),
-                        'taxonID': md.get('guid'),
-                        'rank': md.get('rank'),
-                        'genus': md.get('genus'),
-                        'family': md.get('family'),
-                        'order': md.get('order'),
-                        'clazz': md.get('classs'),
-                        'phylum': md.get('phylum'),
-                        'kingdom': md.get('kingdom')
+                'scientificName': md.get('scientificName'),
+                'vernacularName': md.get('commonNameSingle'),
+                'taxonID': md.get('guid'),
+                'rank': md.get('rank'),
+                'genus': md.get('genus'),
+                'family': md.get('family'),
+                'order': md.get('order'),
+                'clazz': md.get('classs'),
+                'phylum': md.get('phylum'),
+                'kingdom': md.get('kingdom')
             },
         }
         # build item to import
@@ -199,7 +202,9 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         # TODO: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
-            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            # FIXME: copy all occurrence metadata to zip level, for backwards
+            # compatibility... this should go away after we fully support 'layered'
+            # occurrence zips.
             for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
                 if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
                     item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
@@ -226,6 +231,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
 
+
 @app.task()
 def pull_qid_occurrences_from_ala(params, dest_url, context):
     # 1. set progress
@@ -243,7 +249,9 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
         # TODO: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'ala_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
-            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            # FIXME: copy all occurrence metadata to zip level, for backwards
+            # compatibility... this should go away after we fully support 'layered'
+            # occurrence zips.
             for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
                 if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
                     item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
@@ -258,7 +266,8 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
         set_progress("RUNNING", "Import dataset '{0}' from ALA Spatial Portal".format(item['title']), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
-        import_job.link_error(set_progress_job("FAILED", "Import of dataset '{0}' from ALA Spartial Portal failed".format(item['title']), None, context))
+        import_job.link_error(set_progress_job(
+            "FAILED", "Import of dataset '{0}' from ALA Spartial Portal failed".format(item['title']), None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job("COMPLETED", "ALA import '{}' complete".format(item['title']), None, context)
         (import_job | cleanup_job | finish_job).delay()
