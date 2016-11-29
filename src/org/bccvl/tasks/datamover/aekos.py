@@ -166,6 +166,11 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
                     item['filemetadata'][key] = item['filemetadata'][
                         trait_csv_filename]['metadata'][key]
 
+        # TODO: clean this up
+        #    remove citation file from metadata, otherwise it will be interpreted as data layer within zip file
+        if 'data/aekos_citation.csv' in item.get('filemetadata', {}):
+            del item['filemetadata']['data/aekos_citation.csv']
+
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(aekos_csv))
         dst = build_destination(os.path.join(
