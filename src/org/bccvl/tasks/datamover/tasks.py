@@ -5,6 +5,8 @@ import logging
 import os.path
 import shutil
 import tempfile
+import zipfile
+import mimetypes
 
 from org.bccvl import movelib
 from org.bccvl.movelib.utils import build_source, build_destination
@@ -98,15 +100,32 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         src = build_source(url, userid, settings)
         dst = build_destination('file://{}'.format(tmpfile), settings)
         movelib.move(src, dst)
-        item = {
-            'filemetadata': extract_metadata(tmpfile, "text/csv")
-        }
+
+        # Extract occurrence file from downloaded file
+        mimetype, enc = mimetypes.guess_type(tmpfile)
+        if mimetype == 'application/zip':
+            src_occ_data = os.path.join('data', 'occurrence.csv')            
+            with zipfile.ZipFile(tmpfile, 'r') as zipf:
+                fd, occfile = tempfile.mkstemp(dir=tmpdir)
+                zipf.extract(src_occ_data, occfile)
+            item = {
+                'filemetadata': extract_metadata(tmpfile, contenttype)
+            }
+            occmd = item['filemetadata'].get(src_occ_data, {}).get('metadata', {})
+        else:
+            # csv file
+            item = {
+                'filemetadata': extract_metadata(tmpfile, "text/csv")
+            }
+            occfile = tmpfile
+            occmd = item['filemetadata']
+
 
         # Check that there are lon and lat columns
         # if upload is of type csv, we validate column names as well
-        if ('headers' not in item['filemetadata']
-                or 'lat' not in item['filemetadata']['headers']
-                or 'lon' not in item['filemetadata']['headers']):
+        if ('headers' not in occmd
+                or 'lat' not in occmd['headers']
+                or 'lon' not in occmd['headers']):
             raise Exception("Missing 'lat'/'lon' column")
 
         set_progress('RUNNING',
@@ -123,7 +142,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         #       linked up with dataset collection item
         # FIXME: large csv files should be streamed to seperate files (not read
         #        into ram like here)
-        f = io.open(tmpfile, 'r', encoding='utf-8', errors='ignore')
+        f = io.open(occfile, 'r', encoding='utf-8', errors='ignore')
         csvreader = UnicodeCSVReader(f)
         headers = csvreader.next()
         if 'species' not in headers:

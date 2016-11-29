@@ -16,6 +16,8 @@ from org.bccvl.tasks.utils import traverse_dict, extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
 from org.bccvl.tasks.utils import import_ala_job
+from org.bccvl.tasks.utils import UnicodeCSVReader
+from org.bccvl.tasks.utils import UnicodeCSVWriter
 
 
 LOG = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ LOG = logging.getLogger(__name__)
 # Combine the specified named csv file in the source directories
 def combine_csv(srcdirs, filename, destdir):
     with io.open(os.path.join(destdir, filename), mode='bw') as cf:
-        csv_writer = csv.writer(cf)
+        csv_writer = UnicodeCSVWriter(cf)
         headers_written = False
 
         for srcdir in srcdirs:
@@ -31,7 +33,7 @@ def combine_csv(srcdirs, filename, destdir):
             if not os.path.isfile(filepath):
                 continue
             with io.open(filepath, 'r') as f:
-                csv_reader = csv.reader(f)
+                csv_reader = UnicodeCSVReader(f)
                 headers = next(csv_reader)
                 if not headers_written:
                     csv_writer.writerow(headers)
