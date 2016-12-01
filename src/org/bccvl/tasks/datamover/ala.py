@@ -15,7 +15,7 @@ from org.bccvl.tasks.celery import app
 from org.bccvl.tasks.utils import traverse_dict, extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
-from org.bccvl.tasks.utils import import_ala_job
+from org.bccvl.tasks.utils import import_ala_job, import_multi_species_csv_job
 from org.bccvl.tasks.utils import UnicodeCSVReader
 from org.bccvl.tasks.utils import UnicodeCSVWriter
 
@@ -236,7 +236,7 @@ def pull_occurrences_from_ala(lsid, dest_url, context):
 
 
 @app.task()
-def pull_qid_occurrences_from_ala(params, dest_url, context):
+def pull_qid_occurrences_from_ala(params, dest_url, context, import_multspecies_params):
     # 1. set progress
     set_progress('RUNNING', 'Download occurrence dataset from ala', None, context)
     # 2. Download all the occurrence dataset in the params list
@@ -273,7 +273,19 @@ def pull_qid_occurrences_from_ala(params, dest_url, context):
             "FAILED", "Import of dataset '{0}' from ALA Spartial Portal failed".format(item['title']), None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job("COMPLETED", "ALA import '{}' complete".format(item['title']), None, context)
-        (import_job | cleanup_job | finish_job).delay()
+
+        # Split multi-species dataset
+        if import_multspecies_params:
+            import_multispecies_job = import_multi_species_csv_job(item.get('file').get('url'),
+                                                               import_multspecies_params['results_dir'],
+                                                               import_multspecies_params['import_context'],
+                                                               context)
+            import_multispecies_job.link_error(set_progress_job(
+                "FAILED", "Split multi-species dataset '{0}' from ALA Spartial Portal failed".format(item['title']), None, context))
+            import_multispecies_job.link_error(cleanup_job)
+            (import_job | import_multispecies_job | cleanup_job | finish_job).delay()
+        else:
+            (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
         set_progress('FAILED', 'Download occurrence dataset from ALA Spatial Portal: {}'.format(e), None, context)
