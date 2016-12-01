@@ -107,10 +107,10 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # Extract occurrence file from downloaded file
         mimetype, enc = mimetypes.guess_type(tmpfile)
         if mimetype == 'application/zip':
-            src_occ_data = os.path.join('data', 'occurrence.csv')            
+            src_occ_data = os.path.join('data', 'ala_occurrence.csv')            
             with zipfile.ZipFile(tmpfile, 'r') as zipf:
-                fd, occfile = tempfile.mkstemp(dir=tmpdir)
-                zipf.extract(src_occ_data, occfile)
+                occfile = os.path.join(tmpdir, src_occ_data)
+                zipf.extract(src_occ_data, tmpdir)
             item = {
                 'filemetadata': extract_metadata(tmpfile, 'application/zip')
             }
