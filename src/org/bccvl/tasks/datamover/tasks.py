@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import zipfile
 import mimetypes
+import glob
 
 from org.bccvl import movelib
 from org.bccvl.movelib.utils import build_source, build_destination
@@ -94,12 +95,14 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         set_progress('RUNNING', 'Split {0}'.format(url), None, context)
         # step 1: update main dataset metadata
         tmpdir = tempfile.mkdtemp()
-        fd, tmpfile = tempfile.mkstemp(dir=tmpdir)
         userid = context.get('user', {}).get('id')
         settings = app.conf.get('bccvl', {})
         src = build_source(url, userid, settings)
-        dst = build_destination('file://{}'.format(tmpfile), settings)
+        dst = build_destination('file://{}'.format(tmpdir), settings)
         movelib.move(src, dst)
+
+        # Get the downloaded filename
+        tmpfile = glob.glob(os.path.join(tmpdir, '*'))[0]
 
         # Extract occurrence file from downloaded file
         mimetype, enc = mimetypes.guess_type(tmpfile)
@@ -109,7 +112,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                 fd, occfile = tempfile.mkstemp(dir=tmpdir)
                 zipf.extract(src_occ_data, occfile)
             item = {
-                'filemetadata': extract_metadata(tmpfile, contenttype)
+                'filemetadata': extract_metadata(tmpfile, 'application/zip')
             }
             occmd = item['filemetadata'].get(src_occ_data, {}).get('metadata', {})
         else:
