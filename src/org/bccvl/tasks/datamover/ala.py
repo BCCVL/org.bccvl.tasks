@@ -122,6 +122,7 @@ def download_occurrence_from_ala(params, context):
     else:
         title = ala_ds['title']
         description = ala_ds['description']
+        species = species[0]
 
     # build bccvl metadata:
     bccvlmd = {
