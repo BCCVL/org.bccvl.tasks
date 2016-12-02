@@ -188,9 +188,9 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
         # Split multi-species dataset
         if import_multspecies_params:
             import_multispecies_job = import_multi_species_csv_job(item.get('file').get('url'),
-                                                               import_multspecies_params['results_dir'],
-                                                               import_multspecies_params['import_context'],
-                                                               context)
+                                                                   import_multspecies_params['results_dir'],
+                                                                   import_multspecies_params['import_context'],
+                                                                   context)
             import_multispecies_job.link_error(set_progress_job(
                 "FAILED", "Split multi-species dataset '{0}' from ALA failed".format(item['title']), None, context))
             import_multispecies_job.link_error(cleanup_job)

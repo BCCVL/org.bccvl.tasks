@@ -16,6 +16,7 @@ from org.bccvl.tasks.utils import import_ala_job
 
 LOG = logging.getLogger(__name__)
 
+
 @app.task()
 def pull_occurrences_from_gbif(lsid, dest_url, context):
     # 1. set progress
@@ -78,11 +79,12 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
         # TODO: This is a hack. Any better solution.
         occurrence_csv_filename = os.path.join('data', 'gbif_occurrence.csv')
         if occurrence_csv_filename in item['filemetadata']:
-            # FIXME: copy all occurrence metadata to zip level, for backwards compatibility... this should go away after we fully support 'layered' occurrence zips.
+            # FIXME: copy all occurrence metadata to zip level, for backwards
+            # compatibility... this should go away after we fully support 'layered'
+            # occurrence zips.
             for key in ('rows', 'headers', 'bounds'):  # what about 'species' ?
                 if key in item['filemetadata'][occurrence_csv_filename]['metadata']:
                     item['filemetadata'][key] = item['filemetadata'][occurrence_csv_filename]['metadata'][key]
-
 
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(gbif_csv))

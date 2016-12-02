@@ -107,7 +107,7 @@ def get_datafiles(tmpdir, include_prov=True):
                 os.listdir(tmpdir) if fname != 'mets.xml')
     else:
         return ('{0}/{1}'.format(tmpdir, fname) for fname in
-                 os.listdir(tmpdir) if fname not in ('mets.xml', 'prov.ttl'))
+                os.listdir(tmpdir) if fname not in ('mets.xml', 'prov.ttl'))
 
 
 def send_mail(
