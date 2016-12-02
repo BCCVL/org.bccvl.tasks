@@ -11,7 +11,7 @@ import mock
 
 from org.bccvl import movelib
 
-from org.bccvl.tasks.datamover.ala import download_occurrence_from_ala_by_qid
+from org.bccvl.tasks.datamover.ala import download_occurrence_from_ala
 
 
 class Test_pull_occurrences_from_ala(unittest.TestCase):
@@ -20,7 +20,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
     @mock.patch('org.bccvl.tasks.datamover.ala.set_progress')
     @mock.patch('org.bccvl.movelib.protocol.ala._download_metadata_for_lsid')
     @mock.patch('org.bccvl.movelib.protocol.ala._download_occurrence')
-    def test_download_occurrence_from_ala_by_qid(self, mock_occur, mock_md, mock_setprogress):
+    def test_download_occurrence_from_ala(self, mock_occur, mock_md, mock_setprogress):
         def fetch_occur_data(lsid, dest):
             occur_file = os.path.join(dest, 'ala_occurrence.zip')
             shutil.copyfile(resource_filename(__name__, 'data.zip'),
@@ -74,7 +74,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
 
         results = []
         try:
-            item, results = download_occurrence_from_ala_by_qid(params, context)
+            item, results = download_occurrence_from_ala(params, context)
 
             # Check the files created
             self.assertEqual(len(results), 3)

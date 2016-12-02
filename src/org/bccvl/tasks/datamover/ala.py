@@ -44,7 +44,7 @@ def combine_csv(srcdirs, filename, destdir):
                     csv_writer.writerow(row)
 
 
-def download_occurrence_from_ala_by_qid(params, context):
+def download_occurrence_from_ala(params, context):
     results = []
     species = []   # a list of species metadata
     ds_names = []
@@ -153,7 +153,7 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
     results = []
 
     try:
-        item, results = download_occurrence_from_ala_by_qid(params, context)
+        item, results = download_occurrence_from_ala(params, context)
 
         # This is the zip file path of the occurrence dataset
         ala_csv = item.get('file').get('url').split('file://')[1]
