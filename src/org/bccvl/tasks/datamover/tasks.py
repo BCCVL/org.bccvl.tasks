@@ -80,7 +80,7 @@ def update_metadata(url, filename, contenttype, context):
         set_progress('FAILED',
                      'Metadata update for {} failed: {}'.format(url, e),
                      None, context)
-        LOG.error('Metadata update for %s failed: %s', url, e)
+        LOG.error('Metadata update for %s failed: %s', url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
@@ -243,7 +243,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                      'Error while splitting Multi Species CSV {}: {}'.format(
                          url, e),
                      None, context)
-        LOG.error('Multi species split for %s faild: %s', url, e)
+        LOG.error('Multi species split for %s faild: %s', url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

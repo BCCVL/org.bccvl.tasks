@@ -201,7 +201,7 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
     except Exception as e:
         set_progress('FAILED', 'Download occurrence dataset from ALA: {}'.format(e), None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', params, dest_url, e)
+        LOG.error('Download from %s to %s failed: %s', params, dest_url, e, exc_info=True)
     finally:
         for tmpdir in results:
             if tmpdir and os.path.exists(tmpdir):

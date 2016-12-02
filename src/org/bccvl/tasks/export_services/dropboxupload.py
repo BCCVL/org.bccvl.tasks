@@ -25,7 +25,7 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
         msg = "Error uploading experiment '{0}' - Access Token could not be refreshed: {1}".format(
             metadata['title'],
             str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
     foldername = metadata['title']
     try:
@@ -103,7 +103,7 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
             metadata['title'], str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
     finally:
         if os.path.exists(tmpdir):

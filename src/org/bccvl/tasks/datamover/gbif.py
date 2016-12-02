@@ -101,7 +101,7 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
     except Exception as e:
         set_progress('FAILED', 'Download {0} from gbif: {1}'.format(lsid, e), None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
+        LOG.error('Download from %s to %s failed: %s', src, dest_url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

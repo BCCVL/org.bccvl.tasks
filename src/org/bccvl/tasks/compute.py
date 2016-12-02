@@ -162,7 +162,7 @@ def run_script_SDM(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
-        LOG.exception(errmsg)
+        LOG.error(errmsg, exc_info=True)
 
         set_progress('FAILED', errmsg, None, context)
         # FIXME: remove me
@@ -264,7 +264,7 @@ def run_script(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
-        LOG.exception(errmsg)
+        LOG.error(errmsg, exc_info=True)
 
         start_import = set_progress_job(
             'RUNNING', 'Import results', None, context)

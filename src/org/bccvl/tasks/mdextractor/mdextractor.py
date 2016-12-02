@@ -398,7 +398,7 @@ class CSVExtractor(object):
                         right=max(lon, bounds['right'])
                     )
                 except Exception as e:
-                    LOG.exception(e)
+                    LOG.error(e, exc_info=True)
                     raise Exception(
                         "Invalid lat/lon value at line {}".format(count))
                 if speciesidx is not None:

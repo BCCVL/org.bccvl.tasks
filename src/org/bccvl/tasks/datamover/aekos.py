@@ -195,7 +195,7 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
         set_progress('FAILED', 'Download Traits from aekos: {1}'.format(
             data, e), None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
+        LOG.error('Download from %s to %s failed: %s', src, dest_url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

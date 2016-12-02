@@ -52,7 +52,7 @@ def export_figshare(siteurl, fileurls, serviceid, context, conf):
     except Exception as e:
         msg = "Error creating article: {0} - response: {1}".format(
             str(e), str(response.content))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
         raise e
 
@@ -77,7 +77,7 @@ def export_figshare(siteurl, fileurls, serviceid, context, conf):
         except Exception as e:
             msg = "Error uploading file '{0}': {1} - response: {2}".format(
                 os.path.split(data_file)[-1], str(e), str(response.content))
-            LOG.error(msg)
+            LOG.error(msg, exc_info=True)
             send_mail(
                 context,
                 serviceid,
@@ -100,7 +100,7 @@ def export_figshare(siteurl, fileurls, serviceid, context, conf):
         # We can do without the link, so we'll just log this error but not fail
         # the entire upload.
         LOG.error(
-            "Error adding link: {0} - response: {1}".format(str(e), str(response.content)))
+            "Error adding link: {0} - response: {1}".format(str(e), str(response.content)), exc_info=True)
 
     # get article info
     response = client.get(
@@ -115,7 +115,7 @@ def export_figshare(siteurl, fileurls, serviceid, context, conf):
     except Exception as e:
         msg = "Error getting article info: {0} - response: {1}".format(
             str(e), str(response.content))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
         raise e
 
@@ -153,5 +153,5 @@ def export_figshare(siteurl, fileurls, serviceid, context, conf):
             "\n".join(msg),
             success=True)
     except Exception as e:
-        LOG.error("Error notifying user: {0}".format(str(e)))
+        LOG.error("Error notifying user: {0}".format(str(e)), exc_info=True)
         raise e
