@@ -131,20 +131,20 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
         # extract metadata and do other stuff....
         set_progress('RUNNING', 'Extract metadata {0} from aekos'.format(
             data), None, context)
- 
+
         # open aekos_dateset.json
         aekos_ds = json.load(
             open(os.path.join(tmpdir, 'aekos_dataset.json'), 'r'))
         # collect files inside ds per datatype
         files = dict(((f['dataset_type'], f) for f in aekos_ds['files']))
-       
+
         # this is actually a zip file now
         aekos_csv = files['traits']['url']
 
         # build item to import
         item = {
-            #'title': aekos_ds['title'],
-            #'description': aekos_ds['description'],
+            'title': aekos_ds['title'],
+            'description': aekos_ds['description'],
             'file': {
                 'url': 'file://{}'.format(aekos_csv),  # local file url
                 'contenttype': 'application/zip',
@@ -166,6 +166,11 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
                     item['filemetadata'][key] = item['filemetadata'][
                         trait_csv_filename]['metadata'][key]
 
+        # TODO: clean this up
+        #    remove citation file from metadata, otherwise it will be interpreted as data layer within zip file
+        if 'data/aekos_citation.csv' in item.get('filemetadata', {}):
+            del item['filemetadata']['data/aekos_citation.csv']
+
         # move data file to destination and build data_url
         src = build_source('file://{}'.format(aekos_csv))
         dst = build_destination(os.path.join(
@@ -186,12 +191,11 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
             context)
         (import_job | cleanup_job | finish_job).delay()
 
-
     except Exception as e:
         set_progress('FAILED', 'Download Traits from aekos: {1}'.format(
             data, e), None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', src, dest_url, e)
+        LOG.error('Download from %s to %s failed: %s', src, dest_url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

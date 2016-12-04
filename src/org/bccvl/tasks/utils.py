@@ -75,6 +75,16 @@ def import_cleanup_job(results_dir, context):
                          },
                          immutable=True)
 
+def import_multi_species_csv_job(url, results_dir, import_context, context):
+    return app.signature(
+            "org.bccvl.tasks.datamover.tasks.import_multi_species_csv",
+            kwargs={
+                'url': url,
+                'results_dir': results_dir,
+                'import_context': import_context,
+                'context': context
+            },
+            immutable=True)
 
 def extract_metadata(filepath, filect):
     mdextractor = MetadataExtractor()

@@ -35,7 +35,7 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
         msg = "Error uploading experiment '{0}' - Access Token could not be refreshed: {1}".format(
             metadata['title'],
             str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
 
     credentials = client.OAuth2Credentials.from_json(
@@ -48,7 +48,7 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
             msg = "Error uploading experiment - Access Token could not be refreshed: {1}".format(
                 metadata['title'],
                 str(e))
-            LOG.error(msg)
+            LOG.error(msg, exc_info=True)
             send_mail(
                 context,
                 serviceid,
@@ -62,7 +62,7 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
         msg = "Error uploading experiment '{0}' - Google Drive authentication failed: {1}".format(
             metadata['title'],
             str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
 
     try:
@@ -100,7 +100,7 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
             metadata['title'], str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
 
     try:
@@ -188,7 +188,7 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
     except Exception as e:
         msg = "Error uploading experiment '{0}': {1}".format(
             metadata['title'], str(e))
-        LOG.error(msg)
+        LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
     finally:
         if os.path.exists(tmpdir):

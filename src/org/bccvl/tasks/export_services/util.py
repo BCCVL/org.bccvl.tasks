@@ -67,7 +67,7 @@ def get_oauth_tokens(siteurl, serviceid, user, conf):
             "{0}/oauth/{1}/accesstoken".format(siteurl, serviceid),
             verify=verify).json()
     except Exception as e:
-        LOG.error('Error getting access token: {0}'.format(str(e)))
+        LOG.error('Error getting access token: {0}'.format(str(e)), exc_info=True)
         raise e
     # get client token from configuration
     client_tokens = conf['oauth'].get(serviceid, {})
@@ -107,7 +107,7 @@ def get_datafiles(tmpdir, include_prov=True):
                 os.listdir(tmpdir) if fname != 'mets.xml')
     else:
         return ('{0}/{1}'.format(tmpdir, fname) for fname in
-                 os.listdir(tmpdir) if fname not in ('mets.xml', 'prov.ttl'))
+                os.listdir(tmpdir) if fname not in ('mets.xml', 'prov.ttl'))
 
 
 def send_mail(

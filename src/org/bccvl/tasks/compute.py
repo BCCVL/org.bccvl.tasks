@@ -162,7 +162,7 @@ def run_script_SDM(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
-        LOG.exception(errmsg)
+        LOG.error(errmsg, exc_info=True)
 
         set_progress('FAILED', errmsg, None, context)
         # FIXME: remove me
@@ -264,7 +264,7 @@ def run_script(wrapper, params, context):
         #  ... how to simulate fault? (download error)
 
         # log error message with exception and traceback
-        LOG.exception(errmsg)
+        LOG.error(errmsg, exc_info=True)
 
         start_import = set_progress_job(
             'RUNNING', 'Import results', None, context)
@@ -284,19 +284,21 @@ def run_script(wrapper, params, context):
         if path and os.path.exists(path):
             shutil.rmtree(path)
 
+
 def push_projection_info(params, context, rundate):
     taxon_name = None
     common_name = None
     conserve_status = None
 
     # load the species metatadata
-    mdfilepath = os.path.join(params['env']['inputdir'], params['params']['species_occurrence_dataset']['uuid'], 'ala_metadata.json')
+    mdfilepath = os.path.join(params['env']['inputdir'], params['params'][
+                              'species_occurrence_dataset']['uuid'], 'ala_metadata.json')
     metadata = json.load(open(mdfilepath))
 
     # Get scientific name
     taxon_name = (metadata.get('classification', {}).get('scientificName')
-                 or metadata.get('taxonConcept', {}).get('nameString')
-                 or metadata.get('taxonConcept', {}).get('nameComplete'))
+                  or metadata.get('taxonConcept', {}).get('nameString')
+                  or metadata.get('taxonConcept', {}).get('nameComplete'))
 
     # Get common name
     for record in metadata['commonNames']:
@@ -309,27 +311,27 @@ def push_projection_info(params, context, rundate):
     for key in records.keys():
         if records[key].get('status', None):
             conserve_status = records[key].get('status')
-            break;
+            break
 
-    md = { "common_name": common_name,
-           "scientific_name": taxon_name,
-           "uuid": metadata.get('taxonConcept', {}).get('guid'),
-           "kingdom": metadata.get('classification', {}).get('kingdom'),
-           "class": metadata.get('classification', {}).get('class'),
-           "family": metadata.get('classification', {}).get('family'),
-           "conservationStatuses": conserve_status,
-           "run_date": rundate,
-           "title": common_name or taxon_name,
-           "description": "Species Distribution Model and Climate Change projection of {} using Maxent algorithm.".format(common_name or taxon_name),
-           "current_proj_url": os.path.join(params['result']['results_dir'], 'current_projection.png'),
-           "future_proj_url": os.path.join(params['result']['results_dir'], '2085_projection.png'),
-           "algorithm": "Maxent",
-           "current_climate": "Australian Current Climate 1976 to 2005, 30arcsec (~1km)",
-           "future_climate": "Australian Climate Projection RCP85 based on UKMO-HADGEM1, 30arcsec (~1km) - 2085",
-           "gcm": "UKMO-HADGEM1",
-           "emission_scenario": "RCP85",
-           "projection_year": "current, 2085"
-    }
+    md = {"common_name": common_name,
+          "scientific_name": taxon_name,
+          "uuid": metadata.get('taxonConcept', {}).get('guid'),
+          "kingdom": metadata.get('classification', {}).get('kingdom'),
+          "class": metadata.get('classification', {}).get('class'),
+          "family": metadata.get('classification', {}).get('family'),
+          "conservationStatuses": conserve_status,
+          "run_date": rundate,
+          "title": common_name or taxon_name,
+          "description": "Species Distribution Model and Climate Change projection of {} using Maxent algorithm.".format(common_name or taxon_name),
+          "current_proj_url": os.path.join(params['result']['results_dir'], 'current_projection.png'),
+          "future_proj_url": os.path.join(params['result']['results_dir'], '2085_projection.png'),
+          "algorithm": "Maxent",
+          "current_climate": "Australian Current Climate 1976 to 2005, 30arcsec (~1km)",
+          "future_climate": "Australian Climate Projection RCP85 based on UKMO-HADGEM1, 30arcsec (~1km) - 2085",
+          "gcm": "UKMO-HADGEM1",
+          "emission_scenario": "RCP85",
+          "projection_year": "current, 2085"
+          }
 
     move_tasks = []
     srcpath = os.path.join(params['env']['outputdir'], 'proj_metadata.json')
@@ -339,6 +341,7 @@ def push_projection_info(params, context, rundate):
     destpath = os.path.join(params['result']['results_dir'], 'proj_metadata.json')
     move_tasks.append(('file://' + srcpath, destpath))
     datamover.move(move_tasks, context)
+
 
 def create_workenv(params):
     # create worker directories and update env section in params
@@ -444,8 +447,7 @@ def reproject_to_webmercator(params, context):
 
     # Fetch the current and future projection files
     srcfiles = [x for x in glob.iglob(os.path.join(srcpath, 'proj_*', 'proj_*.tif'))
-               if 'Clamping' not in x]
-
+                if 'Clamping' not in x]
 
     if len(srcfiles) < 2:
         raise Exception("Projection failed: expected current and future projection, but {} found".format(len(srcfiles)))
@@ -464,7 +466,7 @@ def reproject_to_webmercator(params, context):
     outfile = open(scriptout, 'w')
 
     # Reproject using Web Mercator projection, and save as png file
-    destfiles =[]
+    destfiles = []
     for srcfile in srcfiles:
         wmcfile = os.path.join(srcpath, 'webmcproj.tif')
         destfile = os.path.splitext(srcfile)[0] + '.png'
@@ -485,6 +487,8 @@ def reproject_to_webmercator(params, context):
     return destfiles
 
 # FIXME: Remove Me
+
+
 def write_status_to_nectar(params, context, status):
 
     move_tasks = []

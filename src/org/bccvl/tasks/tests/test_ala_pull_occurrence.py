@@ -4,14 +4,14 @@ import shutil
 import tempfile
 import unittest
 import zipfile
-import filecmp
+from itertools import izip
 import pkg_resources
 
 import mock
 
 from org.bccvl import movelib
 
-from org.bccvl.tasks.datamover.ala import download_occurrence_from_ala_by_qid
+from org.bccvl.tasks.datamover.ala import download_occurrence_from_ala
 
 
 class Test_pull_occurrences_from_ala(unittest.TestCase):
@@ -20,7 +20,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
     @mock.patch('org.bccvl.tasks.datamover.ala.set_progress')
     @mock.patch('org.bccvl.movelib.protocol.ala._download_metadata_for_lsid')
     @mock.patch('org.bccvl.movelib.protocol.ala._download_occurrence')
-    def test_download_occurrence_from_ala_by_qid(self, mock_occur, mock_md, mock_setprogress):
+    def test_download_occurrence_from_ala(self, mock_occur, mock_md, mock_setprogress):
         def fetch_occur_data(lsid, dest):
             occur_file = os.path.join(dest, 'ala_occurrence.zip')
             shutil.copyfile(resource_filename(__name__, 'data.zip'),
@@ -42,6 +42,14 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
 
         def do_nothing(state, statusmsg, rusage, context):
             return
+
+        def areFilesIdentical(filename1, filename2):
+            with open(filename1, "rtU") as a:
+                with open(filename2, "rtU") as b:
+                    # Note that "all" and "izip" are lazy
+                    # (will stop at the first line that's not identical)
+                    return all(lineA == lineB
+                        for lineA, lineB in izip(a.xreadlines(), b.xreadlines()))
 
         mock_occur.side_effect = fetch_occur_data
         mock_md.side_effect = fetch_meta_data
@@ -66,7 +74,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
 
         results = []
         try:
-            item, results = download_occurrence_from_ala_by_qid(params, context)
+            item, results = download_occurrence_from_ala(params, context)
 
             # Check the files created
             self.assertEqual(len(results), 3)
@@ -79,9 +87,9 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
 
             # Check final occurrence file
             self.assertEqual(item.get('title'), 'test_data1, test_data2 occurrences')
-            self.assertTrue(filecmp.cmp(os.path.join(results[2], 'data', 'ala_occurrence.csv'), 
+            self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_occurrence.csv'), 
                                         pkg_resources.resource_filename(__name__, 'ala_occurrence.csv')))
-            self.assertTrue(filecmp.cmp(os.path.join(results[2], 'data', 'ala_citation.csv'), 
+            self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_citation.csv'), 
                                         pkg_resources.resource_filename(__name__, 'ala_citation.csv')))
 
         finally:
