@@ -177,13 +177,13 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
         movelib.move(src, dst)
 
         # tell importer about new dataset (import it)
-        set_progress("RUNNING", "Import dataset '{0}' from ALA".format(item['title']), None, context)
+        set_progress("RUNNING", u"Import dataset '{0}' from ALA".format(item['title']), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
         import_job.link_error(set_progress_job(
-            "FAILED", "Import of dataset '{0}' from ALA failed".format(item['title']), None, context))
+            "FAILED", u"Import of dataset '{0}' from ALA failed".format(item['title']), None, context))
         import_job.link_error(cleanup_job)
-        finish_job = set_progress_job("COMPLETED", "ALA import '{}' complete".format(item['title']), None, context)
+        finish_job = set_progress_job("COMPLETED", u"ALA import '{}' complete".format(item['title']), None, context)
 
         # Split multi-species dataset
         if import_multspecies_params:
@@ -192,7 +192,7 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
                                                                    import_multspecies_params['import_context'],
                                                                    context)
             import_multispecies_job.link_error(set_progress_job(
-                "FAILED", "Split multi-species dataset '{0}' from ALA failed".format(item['title']), None, context))
+                "FAILED", u"Split multi-species dataset '{0}' from ALA failed".format(item['title']), None, context))
             import_multispecies_job.link_error(cleanup_job)
             (import_job | import_multispecies_job | cleanup_job | finish_job).delay()
         else:
