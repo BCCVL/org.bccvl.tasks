@@ -48,7 +48,7 @@ def get_files(urllist, userid, conf):
     dest = tempfile.mkdtemp(prefix='bccvl_export')
     for url in urllist:
         src = build_source(url, userid, conf)
-        dst = build_destination('file://{0}'.format(dest), conf)
+        dst = build_destination('file://{0}/{1}'.format(dest, os.path.basename(url)), conf)
         movelib.move(src, dst)
     return dest
 
@@ -63,6 +63,7 @@ def get_oauth_tokens(siteurl, serviceid, user, conf):
     if cookie:
         s.cookies.set(**cookie)
     try:
+
         access_tokens = s.get(
             "{0}/oauth/{1}/accesstoken".format(siteurl, serviceid),
             verify=verify).json()
