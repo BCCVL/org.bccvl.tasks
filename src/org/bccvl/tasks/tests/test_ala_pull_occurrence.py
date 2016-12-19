@@ -86,7 +86,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
                              set(['ala_occurrence.zip', 'data']))
 
             # Check final occurrence file
-            self.assertEqual(item.get('title'), 'test_data1, test_data2 occurrences')
+            self.assertEqual(item.get('title'), 'test_data1, test_data2')
             self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_occurrence.csv'), 
                                         pkg_resources.resource_filename(__name__, 'ala_occurrence.csv')))
             self.assertTrue(areFilesIdentical(os.path.join(results[2], 'data', 'ala_citation.csv'), 

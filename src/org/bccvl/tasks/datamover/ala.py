@@ -100,6 +100,7 @@ def download_occurrence_from_ala(params, context):
         raise Exception("No occurrence dataset is downloaded from ALA")
 
     # Combine all the occurrence and citation files from each download into 1 dataset
+    imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
     if len(results) > 1:
         destdir = tempfile.mkdtemp(prefix='ala_download_')
         results.append(destdir)
@@ -114,14 +115,22 @@ def download_occurrence_from_ala(params, context):
                             ['ala_occurrence.csv', 'ala_citation.csv'])
 
         # Make a title & description for multispecies dataset
-        imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
-        ds_name = ', '.join([name for name in ds_names if name] or [sp['scientificName'] for sp in species])
-        title = "{} occurrences".format(ds_name)
+        ds_name = ', '.join([name for name in ds_names if name])
+        if ds_name:
+            title = ds_name
+        else:
+            ds_name = ','.join([sp['scientificName'] for sp in species])
+            title = "{} occurrences".format(ds_name)
         description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
 
     else:
-        title = ala_ds['title']
-        description = ala_ds['description']
+        ds_name = ', '.join([name for name in ds_names if name])
+        if ds_name:
+            title = ds_name
+            description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
+        else:
+            title = ala_ds['title']
+            description = ala_ds['description']
         species = species[0]
 
     # build bccvl metadata:
