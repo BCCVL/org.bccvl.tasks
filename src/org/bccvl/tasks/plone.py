@@ -324,18 +324,18 @@ def send_mail(fullname, user_address, experiment_name, experiment_url, success):
 
     subject = "Your BCCVL experiment has %s" % job_status
     body = pkg_resources.resource_string("org.bccvl.tasks",
-                                         "complete_email.txt")
+                                         "complete_email.txt").decode('utf-8')
     body = body.format(fullname=fullname, experiment_name=experiment_name,
                        job_status=job_status, experiment_url=experiment_url)
 
     htmlbody = pkg_resources.resource_string("org.bccvl.tasks",
-                                             "complete_email.html")
+                                             "complete_email.html").decode('utf-8')
     htmlbody = htmlbody.format(fullname=fullname, experiment_name=experiment_name,
                                job_status=job_status, experiment_url=experiment_url)
 
     msg = MIMEMultipart('alternative')
-    msg.attach(MIMEText(body, 'plain'))
-    msg.attach(MIMEText(htmlbody, 'html'))
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    msg.attach(MIMEText(htmlbody, 'html', 'utf-8'))
 
     api.portal.send_email(sender='noreply.bccvl.org.au',
                           recipient=user_address, subject=subject, body=msg.as_string())
