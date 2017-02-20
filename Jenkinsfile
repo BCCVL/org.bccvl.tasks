@@ -28,7 +28,7 @@ pipeline {
                     // install test runnor
                     sh 'pip install pytest pytest-cov'
                     // TODO: use --cov-report=xml -> coverage.xml
-                    sh(script: 'pytest -v --junitxml=junit.xml --cov-report=html --cov=org.bccvl.theme',
+                    sh(script: 'pytest -v --junitxml=junit.xml --cov-report=html --cov=org.bccvl.tasks',
                        returnStatus: true)
                 }
                 // capture test result
