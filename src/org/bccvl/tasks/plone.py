@@ -4,9 +4,6 @@ from plone import api
 from org.bccvl.tasks.celery import app
 import logging
 
-LOG = logging.getLogger(__name__)
-
-
 from celery import Task
 import transaction
 import sys
@@ -14,7 +11,6 @@ import os
 import shutil
 import time
 from urlparse import urlparse
-from AccessControl.SecurityManagement import noSecurityManager
 from AccessControl.SecurityManagement import newSecurityManager
 from AccessControl.SecurityManagement import getSecurityManager
 from AccessControl.SecurityManagement import setSecurityManager
@@ -29,12 +25,14 @@ from zope.component import getUtility
 from zope.component.hooks import setSite, getSite
 # TODO: decide which one to use
 from Products.CMFPlone.interfaces import IPloneSiteRoot
-#from Products.CMFCore.interfaces import ISiteRoot
 from org.bccvl.site.job.interfaces import IJobTracker, IJobUtility
 from org.bccvl.site.interfaces import IExperimentJobTracker
 import pkg_resources
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+
+LOG = logging.getLogger(__name__)
 
 
 class AfterCommitTask(Task):
@@ -305,7 +303,7 @@ def set_progress(state, message, rusage, context, **kw):
     else:
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state RUNNING")
-    if not '_jobid' in kw:
+    if '_jobid' not in kw:
         kw['_context'].reindexObject()  # TODO: reindex job state only?
         # Compute the experiement run time if all its jobs are completed
         # The experiment is the parent job

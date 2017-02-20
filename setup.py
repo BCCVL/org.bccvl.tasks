@@ -1,11 +1,15 @@
 from setuptools import setup, find_packages
-import os
 
-version = '1.15.0.dev'
+
+tests_require = [
+    'mock',
+    'requests'
+]
 
 setup(
     name='org.bccvl.tasks',
-    version=version,
+    setup_requires=['guscmversion'],
+    guscmversion=True,
     description="BCCVL Tasks",
     # long_description=open("README.txt").read() + "\n" +
     #                  open(os.path.join("docs", "HISTORY.txt")).read(),
@@ -26,9 +30,10 @@ setup(
     zip_safe=False,
     install_requires=[
         'setuptools',
-        'celery',
+        'celery < 4',
         'org.bccvl.movelib',
     ],
+    tests_require=tests_require,
     extras_require={
         'bccvl': [
             'org.bccvl.site'
@@ -52,5 +57,6 @@ setup(
         'swift': [
             'org.bccvl.movelib[swift]',
         ],
+        'test': tests_require
     }
 )
