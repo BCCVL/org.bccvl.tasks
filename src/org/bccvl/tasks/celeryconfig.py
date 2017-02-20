@@ -112,7 +112,7 @@ CELERY_ROUTES = [
         }
     },
     {
-        "org.bccvl.tasks.datamover.aekos.pull_traits_from_zoatrack": {
+        "org.bccvl.tasks.datamover.zoatrack.pull_traits_from_zoatrack": {
             "queue": "datamover",
             "routing_key": "datamover"
         }
