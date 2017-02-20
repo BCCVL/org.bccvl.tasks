@@ -1,0 +1,222 @@
+reference.txt
+
+***** Project Detail
+
+Title: Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia
+Description: We tracked the seasonal movements of 10 Magpie Geese in tropical northern Australia, predominantly within Kakadu National Park, using ARGOS satellite telemetry. Movements were multi-directional and the maximum linear distance travelled by an individual was 114 km from the site of release, over 38 weeks of tracking. Movements did appear to be related to seasonal environmental fluctuations, with some birds moving to favoured breeding and foraging sites, but most monitored birds were resident within the national park. No accurate data were obtained beyond 12 months, with most birds apparently losing their telemeters within 6 months. Just 62% of point-location data were accurate to within 1000 m.
+Species Scientific Name: Anseranas semipalmata
+Species Common Name: Black And White Goose, Magpie Goose, Magpie-goose, Pied Goose, Semipalmated Goose, Wild Goose
+Licencing and Ethics Clearance: Animal ethics was approved through the University of Adelaide (S-050- 2007). The project was listed with the Australian Bird and Bat Banding Scheme (project number 1456).
+Spatial Coverage Description: Kakadu National Park, NT Australia
+SRS Identifier: EPSG:3577
+Crosses 180: true
+ZoaTrack Data Access Type: OPEN
+Data Licence Identifier: CC-BY
+Data Licence Title: Creative Commons Attribution License
+Data Licence URL: http://creativecommons.org/licenses/by/3.0/
+Data Creators:
+Barry Brook
+Lochran Traill
+
+***** Animal Detail
+
+Animal Id: 4,884
+Project Animal Id: 60606
+Animal Name: 60606
+ZoaTrack Colour: #8DD3C7
+Sex: Male
+Weight: 3240g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60606
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,883
+Project Animal Id: 60607
+Animal Name: 60607
+ZoaTrack Colour: #FFED6F
+Sex: Female
+Weight: 2550g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60607
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,885
+Project Animal Id: 60605
+Animal Name: 60605
+ZoaTrack Colour: #FFFFB3
+Sex: Male
+Weight: 2700g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60605
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,886
+Project Animal Id: 60604
+Animal Name: 60604
+ZoaTrack Colour: #BEBADA
+Sex: Male
+Weight: 2750g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60604
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,892
+Project Animal Id: 60603
+Animal Name: 60603
+ZoaTrack Colour: #D9D9D9
+Sex: Female
+Weight: 2500g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60603
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,891
+Project Animal Id: 60601
+Animal Name: 60601
+ZoaTrack Colour: #FCCDE5
+Sex: Female
+Weight: 2790g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60601
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,890
+Project Animal Id: 60600
+Animal Name: 60600
+ZoaTrack Colour: #B3DE69
+Sex: Female
+Weight: 2540g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 60600
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,889
+Project Animal Id: 66688
+Animal Name: 66688
+ZoaTrack Colour: #FDB462
+Sex: Male
+Weight: 3240g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 66688
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,888
+Project Animal Id: 66686
+Animal Name: 66686
+ZoaTrack Colour: #80B1D3
+Sex: Female
+Weight: 2750g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 66686
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
+Animal Id: 4,887
+Project Animal Id: 66687
+Animal Name: 66687
+ZoaTrack Colour: #FB8072
+Sex: Male
+Weight: 3265g
+Life Phase: sub adult/adult
+Experimental Context: Movement study
+Tag Identifier: 66687
+Tag Deploy Start Date: Feb 1, 2007
+Tag Manufacturer / Model: KiwiSat 101 Platform Transmitter Terminals (PTTs), Sirtrack, Havelock North, New Zealand, www.sirtrack.com
+Tag Dimensions: Each PTT measured 70 x 30 x 25 mm, weighed ~45 g (total weight including harness), and had an external antenna ~150mm long.
+Tag Attachment Technique: Harness. Described in associated paper.
+Tag Deployment Comments: Tag deployment times vary – see associated paper in Emu.
+For more details on individual animals and capture methods see:
+LW Traill, CJA Bradshaw, BW Brook (2010) Satellite telemetry and seasonal movements of Magpie Geese (Anseranas semipalmata) in tropical northern Australia. Emu 110 (2), 160-164 10.1071/MU09098
+Tag Duty Cycle: PTT units were set with a repetition rate of 75 s and a duty cycle of 8 h on and 160 h off
+Tag Data Retrieval Method: Argos
+*****
+
