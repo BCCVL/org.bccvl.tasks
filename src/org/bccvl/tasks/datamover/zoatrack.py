@@ -9,6 +9,7 @@ import tempfile
 import urllib
 import zipfile
 import csv
+from datetime import datetime
 
 from org.bccvl import movelib
 from org.bccvl.movelib.utils import build_source, build_destination
@@ -123,7 +124,10 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
         tmpdir = tempfile.mkdtemp(prefix='zoatrack_download_')
 
         # Trait data file is a zip file; trait data file and citation file
-        trait_zip = download_zoatrack_trait_data(src_url, tmpdir)
+        trait_zip, count = download_zoatrack_trait_data(src_url, tmpdir)
+        
+        if count == 0:
+            raise Exception("No trait data is found")
 
         # extract metadata and do other stuff....
         set_progress('RUNNING', 'Extract metadata {0} from zoatrack'.format(
