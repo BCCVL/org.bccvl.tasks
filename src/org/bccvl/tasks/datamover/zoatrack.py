@@ -98,6 +98,10 @@ def download_zoatrack_trait_data(src_url, dest):
         # TODO: Not a zip file error.... does it have to raise?
         LOG.error("The downloaded file from %s is not a zip file", src_url, exc_info=True)
         raise
+    finally:
+        # Remove the downloaded temp file
+        if trait_zipfile and os.path.isfile(trait_zipfile):
+            os.remove(trait_zipfile)
 
     count = 0
     try:
