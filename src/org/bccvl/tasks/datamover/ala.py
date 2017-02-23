@@ -135,8 +135,8 @@ def download_occurrence_from_ala(params, context):
 
     # build bccvl metadata:
     bccvlmd = {
-        'genre': 'DataGenreSpeciesOccurrence',
-        'categories': ['occurrence'],
+        'genre': 'DataGenreSpeciesCollection' if len(results > 1) else 'DataGenreSpeciesOccurrence',
+        'categories': ['multispecies' if len(results > 1) else 'occurrence'],
         'species': species
     }
 
