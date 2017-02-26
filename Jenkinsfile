@@ -25,9 +25,9 @@ node('docker') {
                     // install test depenhencios
                     sh '. ${VIRTUALENV}/bin/activate; pip install .[test]'
                     // install test runner
-                    sh '. ${VIRTUALENV}/bin/activate; pip install nose'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install nose coverage'
                     // TODO: use --cov-report=xml -> coverage.xml
-                    sh(script: '. ${VIRTUALENV}/bin/activate; nosetests --verbosity=2 --with-xunit --xunit-file=junit.xml --with-coverage --cover-package=org.bccvl.tasks --cover-html --cover-branches',
+                    sh(script: '. ${VIRTUALENV}/bin/activate; python setup.py nosetests --verbosity=2 --with-xunit --xunit-file=junit.xml --with-coverage --cover-package=org.bccvl.tasks --cover-html --cover-branches',
                        returnStatus: true)
 
                     // capture test result
