@@ -15,8 +15,9 @@ node('docker') {
             withVirtualenv() {
 
                 stage('Build') {
-
-                    sh '. ${VIRTUALENV}/bin/activate; pip install -e .[http,scp,swift,metadata]'
+                    // build wheel for install
+                    sh '. ${VIRTUALENV}/bin/activate; python setup.py bdist_wheel'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install $(ls dist/)[http,scp,swift,metadata]'
 
                 }
 
@@ -24,9 +25,9 @@ node('docker') {
                     // install test depenhencios
                     sh '. ${VIRTUALENV}/bin/activate; pip install .[test]'
                     // install test runner
-                    sh '. ${VIRTUALENV}/bin/activate; pip install pytest pytest-cov'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install nose'
                     // TODO: use --cov-report=xml -> coverage.xml
-                    sh(script: '. ${VIRTUALENV}/bin/activate; pytest -v --junitxml=junit.xml --cov-report=html --cov=org.bccvl.tasks',
+                    sh(script: '. ${VIRTUALENV}/bin/activate; nosetests --verbosity=2 --with-xunit --xunit-file=junit.xml --with-coverage --cover-package=org.bccvl.tasks --cover-html --cover-branches',
                        returnStatus: true)
 
                     // capture test result
@@ -48,7 +49,7 @@ node('docker') {
                         allowMissing: false,
                         alwaysLinkToLastBuild: false,
                         keepAll: true,
-                        reportDir: 'htmlcov',
+                        reportDir: 'cover',
                         reportFiles: 'index.html',
                         reportName: 'Coverage Report'
                     ])
@@ -78,6 +79,10 @@ node('docker') {
     } catch(err) {
         throw err
     } finally {
+
+        // clean git clone (removes all build files from local clone)
+        sh 'git clean -x -d -f'
+
         step([
             $class: 'Mailer',
             notifyEveryUnstableBuild: true,
