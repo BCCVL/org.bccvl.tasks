@@ -17,7 +17,7 @@ node('docker') {
                 stage('Build') {
                     // build wheel for install
                     sh '. ${VIRTUALENV}/bin/activate; python setup.py bdist_wheel'
-                    sh '. ${VIRTUALENV}/bin/activate; pip install $(ls ./dist/*.whl)[http,scp,swift,metadata]'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install $(ls ./dist/*.whl)[http,scp,swift,metadata,exports]'
 
                 }
 
