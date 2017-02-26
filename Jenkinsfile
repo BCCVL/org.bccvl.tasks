@@ -2,7 +2,7 @@ pipeline {
 
     agent {
         docker {
-            image 'hub.bccvl.org.au/bccvl/workerbase:2017-02-25'
+            image 'hub.bccvl.org.au/bccvl/bccvlbase:2017-02-20'
         }
     }
 
@@ -14,7 +14,7 @@ pipeline {
                 // environment {} is executed in node context, and there is no WORKSPACE defined
                 withPyPi() {
                     sh 'rm -fr .eggs .cache'
-                    sh 'pip install -e .[metadata,http,scp,swift]'
+                    sh 'pip install -e .'
                 }
             }
 
@@ -72,13 +72,6 @@ pipeline {
                     // Build has to happen in correct folder or setup.py won't find MANIFEST.in file and other files
                     sh 'python setup.py register -r devpi sdist bdist_wheel upload -r devpi'
                 }
-            }
-        }
-
-        stage ('Push Artifact') {
-            steps {
-                sh 'pip freeze > requirements.txt'
-                archiveArtifacts artifacts: 'requirements.txt', fingerprint: true, onlyIfSuccessful: true
             }
         }
 
