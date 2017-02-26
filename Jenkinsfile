@@ -22,6 +22,8 @@ node('docker') {
                 }
 
                 stage('Test') {
+                    // Install movelib dependencies ... sholud have been done already, but extras don't seem to work recursively
+                    sh '. ${VIRTUALENV}/bin/activate; pip install org.bccvl.movelib[http,scp,swift]'
                     // install test depenhencios
                     sh '. ${VIRTUALENV}/bin/activate; pip install .[test]'
                     // install test runner
