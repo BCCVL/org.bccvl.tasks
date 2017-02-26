@@ -70,7 +70,7 @@ node('docker') {
                 stage ('Push Artifact') {
 
                     // uninstall editable package
-                    sh '. ${VIRTUALENV}/bin/activate; pip uninstall org.bccvl.tasks'
+                    sh '. ${VIRTUALENV}/bin/activate; pip uninstall -y org.bccvl.tasks'
                     sh '. ${VIRTUALENV}/bin/activate; pip freeze > requirements.txt'
                     archiveArtifacts artifacts: 'requirements.txt', fingerprint: true, onlyIfSuccessful: true
 
