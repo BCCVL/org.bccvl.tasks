@@ -15,9 +15,7 @@ node('docker') {
             withVirtualenv() {
 
                 stage('Build') {
-                    // build wheel for install
-                    sh '. ${VIRTUALENV}/bin/activate; python setup.py bdist_wheel'
-                    sh '. ${VIRTUALENV}/bin/activate; pip install $(ls ./dist/*.whl)[http,scp,swift,metadata,exports]'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install -e .[http,scp,swift,metadata,exports]'
 
                 }
 
@@ -27,9 +25,9 @@ node('docker') {
                     // install test depenhencios
                     sh '. ${VIRTUALENV}/bin/activate; pip install .[test]'
                     // install test runner
-                    sh '. ${VIRTUALENV}/bin/activate; pip install nose coverage'
+                    sh '. ${VIRTUALENV}/bin/activate; pip install pytest pytest-cov'
                     // TODO: use --cov-report=xml -> coverage.xml
-                    sh(script: '. ${VIRTUALENV}/bin/activate; python setup.py nosetests --verbosity=2 --with-xunit --xunit-file=junit.xml --with-coverage --cover-package=org.bccvl.tasks --cover-html --cover-branches',
+                    sh(script: '. ${VIRTUALENV}/bin/activate; pytest -v --junitxml=junit.xml --cov-report=html --cov=org.bccvl.movelib',
                        returnStatus: true)
 
                     // capture test result
@@ -51,7 +49,7 @@ node('docker') {
                         allowMissing: false,
                         alwaysLinkToLastBuild: false,
                         keepAll: true,
-                        reportDir: 'cover',
+                        reportDir: 'htmlcov',
                         reportFiles: 'index.html',
                         reportName: 'Coverage Report'
                     ])
@@ -71,6 +69,8 @@ node('docker') {
 
                 stage ('Push Artifact') {
 
+                    // uninstall editable package
+                    sh '. ${VIRTUALENV}/bin/activate; pip uninstall org.bccvl.tasks'
                     sh '. ${VIRTUALENV}/bin/activate; pip freeze > requirements.txt'
                     archiveArtifacts artifacts: 'requirements.txt', fingerprint: true, onlyIfSuccessful: true
 
