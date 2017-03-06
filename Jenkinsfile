@@ -4,7 +4,7 @@ node('docker') {
 
         stage('Checkout') {
             // clean git clone, but don't fail in case it doesn't exist yet
-            sh(script: 'git clean -x -d -f', returnStdout: true)
+            sh(script: 'git clean -x -d -f', returnStatus: true)
             checkout scm
         }
 
