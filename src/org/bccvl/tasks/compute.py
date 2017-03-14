@@ -10,6 +10,7 @@ import datetime
 from multiprocessing.pool import ThreadPool as Pool
 import os
 import os.path
+import pwd
 from pkg_resources import resource_string
 import resource
 import shutil
@@ -124,6 +125,7 @@ def run_script_SDM(wrapper, params, context):
 
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 close_fds=True,
+                                env=get_process_env(params),
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         usage = get_rusage(rusage)
@@ -176,6 +178,19 @@ def run_script_SDM(wrapper, params, context):
             shutil.rmtree(path)
 
 
+def get_process_env(params):
+    # build an environment for sub processes (compute tasks)
+    proc_env = os.environ.copy()
+    proc_env['WORKDIR'] = params['env']['workdir']
+    # we usually run as daemonised process started by celery
+    # celery correctly drops privileges to given uid and gid, but does not set
+    # HOME, USER env vars
+    pw_ent = pwd.getpwuid(os.getuid())
+    proc_env['HOME'] = pw_ent.pw_name
+    proc_env['USER'] = pw_ent.pw_dir
+    return proc_env
+
+
 def run_script(wrapper, params, context):
     # TODO: there are many little things that can fail here, and we
     #       need to communicate it properly back to the user.
@@ -213,6 +228,7 @@ def run_script(wrapper, params, context):
         LOG.info("Executing: %s", ' '.join(cmd))
         proc = subprocess.Popen(cmd, cwd=params['env']['scriptdir'],
                                 close_fds=True,
+                                env=get_process_env(params),
                                 stdout=outfile, stderr=subprocess.STDOUT)
         rpid, ret, rusage = os.wait4(proc.pid, 0)
         # TODO: should we write this as json file and send as result back
