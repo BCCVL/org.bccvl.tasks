@@ -26,7 +26,6 @@ LATITUDE = 'lat'
 EVENT_DATE = 'date'
 YEAR = 'year'
 MONTH = 'month'
-ANIMAL_ID = 'animalId'
 
 LOG = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ def _process_trait_data(datadir):
         csv_reader = csv.reader(csv_file)
 
         # Check if csv file header has the necessary columns
-        columns = set(['decimalLatitude', 'decimalLongitude', 'speciesScientificName', 'month', 'year', 'eventDate', 'animalId'])
+        columns = set(['decimalLatitude', 'decimalLongitude', 'speciesScientificName', 'month', 'year', 'eventDate', 'organismId', 'eventId'])
         csv_headers = next(csv_reader)
         missing_columns = ', '.join(columns.difference(csv_headers))
         if missing_columns:
