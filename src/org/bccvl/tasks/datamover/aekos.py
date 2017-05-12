@@ -53,7 +53,7 @@ def pull_occurrences_from_aekos(species, dest_url, context):
             'genre': 'DataGenreSpeciesOccurrence',
             'categories': ['occurrence'],
             'species': {
-                'scientificName': traverse_dict(aekos_md, '0/scientificName'),
+                'scientificName': traverse_dict(aekos_md, '0/speciesName'),
                 'taxonID': traverse_dict(aekos_md, '0/id'),
                 'rank': 'species'
             },
