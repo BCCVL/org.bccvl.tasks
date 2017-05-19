@@ -24,11 +24,11 @@ node('docker') {
                         // Install movelib dependencies ... sholud have been done already, but extras don't seem to work recursively
                         sh '. ${VIRTUALENV}/bin/activate; pip install org.bccvl.movelib[http,scp,swift]'
                         // install test depenhencios
-                        sh '. ${VIRTUALENV}/bin/activate; pip install .[test]'
+                        sh '. ${VIRTUALENV}/bin/activate; pip install -e .[test]'
                         // install test runner
                         sh '. ${VIRTUALENV}/bin/activate; pip install pytest pytest-cov'
                         // TODO: use --cov-report=xml -> coverage.xml
-                        sh(script: '. ${VIRTUALENV}/bin/activate; pytest -v --junitxml=junit.xml --cov-report=html --cov=org.bccvl.movelib',
+                        sh(script: '. ${VIRTUALENV}/bin/activate; pytest -v --junitxml=junit.xml --cov-report=xml --cov=org.bccvl.tasks',
                            returnStatus: true)
 
                         // capture test result
@@ -46,15 +46,9 @@ node('docker') {
                             ]
                         ])
                         // publish html coverage report
-                        publishHTML(target: [
-                            allowMissing: false,
-                            alwaysLinkToLastBuild: false,
-                            keepAll: true,
-                            reportDir: 'htmlcov',
-                            reportFiles: 'index.html',
-                            reportName: 'Coverage Report'
-                        ])
-
+                        step([$class: 'CoberturaPublisher',
+                              coberturaReportFile: 'coverage.xml']
+                        )
                     }
 
                     stage('Package') {
