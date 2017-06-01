@@ -311,7 +311,8 @@ def set_progress(state, message, rusage, context, **kw):
         if jt and jt.state in ('COMPLETED', 'FAILED'):
             exp = jt.context
             exp.runtime = time.time() - (exp.created().millis() / 1000.0)
-        jt.context.reindexObject()
+        if jt:
+            jt.context.reindexObject()
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
 
 
