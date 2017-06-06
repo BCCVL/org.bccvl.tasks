@@ -546,7 +546,7 @@ def transfer_outputs(params, context):
                                  'params.json'))
     # build collection of all output files
     filelist = set()
-    out_dir = params['env']['outputdir']
+    out_dir = unicode(params['env']['outputdir'])
     for root, dirs, files in os.walk(out_dir):
         for name in files:
             filelist.add(os.path.join(out_dir,
@@ -745,7 +745,7 @@ def createItem(fname, info, params):
     #        -> merge bccvlmd and filemetadata?
     return {
         'file': {
-            'url': 'file://{}'.format(fname),  # local file url
+            'url': u'file://{}'.format(fname),  # local file url
             'contenttype': mimetype,
             'filename': name
         },
