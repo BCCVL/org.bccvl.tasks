@@ -705,31 +705,18 @@ def createItem(fname, info, params):
     layermd = {}
     # bccvlmd ... bccvl specific metadata
     bccvlmd = {}
+
+    layer = info.get('layer', None)
+    if layer:
+        data_type = info.get('data_type', 'Continuous')
+        layermd = {
+            'files': {name: {'layer': layer, 'data_type': data_type}}
+        }
+
     genre = info.get('genre', None)
     if genre:
         bccvlmd['genre'] = genre
         if genre in ('DataGenreSDMModel', 'DataGenreCP', 'DataGenreCP_ENVLOP', 'DataGenreClampingMask', 'DataGenreClimateChangeMetricMap'):
-            if genre == 'DataGenreClampingMask':
-                layermd = {
-                    'files': {name: {'layer': 'clamping_mask', 'data_type': 'Discrete'}}}
-            elif genre in ('DataGenreCP', 'DataGenreCP_ENVLOP'):
-                if params['function'] in ('circles', 'convhull', 'voronoihull'):
-                    layermd = {
-                        'files': {name: {'layer': 'projection_binary', 'data_type': 'Continuous'}}}
-                elif params['function'] in ('maxent',):
-                    layermd = {
-                        'files': {name: {'layer': 'projection_suitablity', 'data_type': 'Continuous'}}}
-                else:
-                    layermd = {'files': {
-                        name: {'layer': 'projection_probability', 'data_type': 'Continuous'}}}
-            elif genre == 'DataGenreClimateChangeMetricMap':
-                layername = info.get('layer', None)
-                if layername:
-                    layermd = {
-                        'files': {
-                            name: {'layer': layername, 'data_type': 'Continuous'}}
-                    }
-
             # FIXME: find a cleaner way to attach metadata
             for key in ('year', 'month', 'emsc', 'gcm'):
                 if key in params:
@@ -746,7 +733,6 @@ def createItem(fname, info, params):
             # Add in the srs and cellsize for Biodiverse
             bccvlmd['srs'] = 'epsg:3577'
             bccvlmd['cellsize'] = params['cluster_size']
-
     # make sure we have a mimetype
     mimetype = info.get('mimetype', None)
     if mimetype is None:
