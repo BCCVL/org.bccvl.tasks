@@ -186,8 +186,8 @@ def get_process_env(params):
     # celery correctly drops privileges to given uid and gid, but does not set
     # HOME, USER env vars
     pw_ent = pwd.getpwuid(os.getuid())
-    proc_env['HOME'] = pw_ent.pw_name
-    proc_env['USER'] = pw_ent.pw_dir
+    proc_env['HOME'] = pw_ent.pw_dir
+    proc_env['USER'] = pw_ent.pw_name
     return proc_env
 
 
