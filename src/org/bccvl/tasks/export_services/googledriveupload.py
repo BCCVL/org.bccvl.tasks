@@ -177,6 +177,24 @@ def export_googledrive(siteurl, fileurls, serviceid, context, conf):
                 media_body=media_body).execute()
             uploaded.append(prov_fn)
 
+        expmd_fn = os.path.join(tmpdir, 'expmetadata.txt')
+        if len(expmd_fn):
+            mimetype = guess_mimetype(expmd_fn)
+            media_body = MediaFileUpload(
+                expmd_fn,
+                mimetype=mimetype,
+                resumable=True)
+            body = {
+                'title': 'expmetadata.txt',
+                'description': 'Experiment Metadata information',
+                'parents': [{'id': exp_folder_id}, ],
+                'mimeType': mimetype,
+            }
+            file = drive_service.files().insert(
+                body=body,
+                media_body=media_body).execute()
+            uploaded.append(expmd_fn)
+
         msg = "\n".join(uploaded)
         send_mail(
             context,

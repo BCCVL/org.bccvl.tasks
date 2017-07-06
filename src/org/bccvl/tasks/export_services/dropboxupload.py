@@ -78,6 +78,12 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
                     open(prov_fn, 'rb'))
                 uploaded.append(prov_fn)
 
+                expmd_fn = os.path.join(tmpdir, 'expmetadata.txt')
+                client.put_file(
+                    os.path.join(foldername, os.path.basename(expmd_fn)),
+                    open(expmd_fn, 'rb'))
+                uploaded.append(expmd_fn)
+
                 msg = "\n".join(uploaded)
                 send_mail(
                     context,
