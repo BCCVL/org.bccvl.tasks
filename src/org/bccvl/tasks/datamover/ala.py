@@ -44,7 +44,7 @@ def combine_csv(srcdirs, filename, destdir):
                     csv_writer.writerow(row)
 
 
-def download_occurrence_from_ala(params, context):
+def download_occurrence_from_ala(params, context, multispecies=False):
     results = []
     species = []   # a list of species metadata
     ds_names = []
@@ -135,8 +135,8 @@ def download_occurrence_from_ala(params, context):
 
     # build bccvl metadata:
     bccvlmd = {
-        'genre': 'DataGenreSpeciesCollection' if len(results) > 1 else 'DataGenreSpeciesOccurrence',
-        'categories': ['multispecies' if len(results) > 1 else 'occurrence'],
+        'genre': 'DataGenreSpeciesCollection' if multispecies or len(results) > 1 else 'DataGenreSpeciesOccurrence',
+        'categories': ['multispecies' if multispecies or len(results) > 1 else 'occurrence'],
         'species': species
     }
 
@@ -163,7 +163,7 @@ def pull_occurrences_from_ala(params, dest_url, context, import_multspecies_para
     results = []
 
     try:
-        item, results = download_occurrence_from_ala(params, context)
+        item, results = download_occurrence_from_ala(params, context, len(import_multspecies_params) > 0)
 
         # This is the zip file path of the occurrence dataset
         ala_csv = item.get('file').get('url').split('file://')[1]
