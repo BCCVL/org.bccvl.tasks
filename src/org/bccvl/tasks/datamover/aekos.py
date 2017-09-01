@@ -28,7 +28,7 @@ def pull_occurrences_from_aekos(species, dest_url, context):
     dst = None
     try:
         tmpdir = tempfile.mkdtemp(prefix='aekos_download_')
-        src = build_source('aekos://occurrence?speciesName={}'.format(species))
+        src = build_source('aekos://occurrence?speciesNames={}'.format(species))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
@@ -121,7 +121,7 @@ def pull_traits_from_aekos(traits, species, envvars, dest_url, context):
     # 2. do move
     src = None
     dst = None
-    data = {'traitName': traits, 'speciesName': species, 'envVarName': envvars}
+    data = {'traitNames': traits, 'speciesNames': species, 'varNames': envvars}
     try:
         tmpdir = tempfile.mkdtemp(prefix='aekos_download_')
         src = build_source(
