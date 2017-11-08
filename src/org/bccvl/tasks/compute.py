@@ -725,7 +725,7 @@ def createItem(fname, info, params):
             # Only get threshold value as from the output of Sama's evaluation script
             # FIXME: should not depend on file name (has already changed once
             # and caused disappearance of threshold values in biodiverse)
-            if fname.endswith('Loss function intervals table.csv'):
+            if name.startswith('Loss-function-intervals-table_') and name.endswith('.csv'):
                 thresholds = extractThresholdValues(fname)
                 # FIXME: merge thresholds?
                 bccvlmd['thresholds'] = thresholds
