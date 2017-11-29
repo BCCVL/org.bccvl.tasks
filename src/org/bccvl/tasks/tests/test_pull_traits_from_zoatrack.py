@@ -26,18 +26,19 @@ class Test_pull_traits_from_zoatrack(unittest.TestCase):
                             temp_file)
         return (temp_file, None)
 
-
     # TODO: this test should go into movelib ?
     @mock.patch('urllib.urlretrieve')
     def test_download_trait_data(self, mock_urlretrieve):
-        def areFilesIdentical(filename1, filename2):
-            with open(filename1, "rtU") as a:
-                with open(filename2, "rtU") as b:
+        def areFilesIdentical(file1, file2):
+            with io.TextIOWrapper(file1, encoding='utf-8') as a:
+                with io.TextIOWrapper(file2, encoding='utf-8') as b:
                     # Note that "all" and "izip" are lazy
                     # (will stop at the first line that's not identical)
-                    return all(lineA == lineB
-                        for lineA, lineB in izip(a.xreadlines(), b.xreadlines()))
-
+                    return all(
+                        lineA == lineB
+                        for lineA, lineB in izip(a.readlines(),
+                                                 b.readlines())
+                    )
         mock_urlretrieve.side_effect = self._urlretrieve
 
         # setup params
@@ -55,8 +56,11 @@ class Test_pull_traits_from_zoatrack(unittest.TestCase):
         self.assertTrue('data/zoatrack_citation.txt' in filelist)
 
         # Check final trait file
-        zoatrack_zip.extractall()
-        self.assertTrue(areFilesIdentical('data/zoatrack_trait.csv', 
-                                    pkg_resources.resource_filename(__name__, 'zoatrack_trait_processed.csv')))
-        self.assertTrue(areFilesIdentical('data/zoatrack_citation.txt', 
-                                    pkg_resources.resource_filename(__name__, 'zoatrack_citation.txt')))
+        self.assertTrue(
+            areFilesIdentical(
+                zoatrack_zip.open('data/zoatrack_trait.csv', 'r'),
+                io.open(resource_filename(__name__, 'zoatrack_trait_processed.csv'), 'rb')))
+        self.assertTrue(
+            areFilesIdentical(
+                zoatrack_zip.open('data/zoatrack_citation.txt', 'r'),
+                io.open(resource_filename(__name__, 'zoatrack_citation.txt'), 'rb')))
