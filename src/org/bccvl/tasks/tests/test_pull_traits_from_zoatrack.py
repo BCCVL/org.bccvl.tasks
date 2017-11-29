@@ -1,11 +1,11 @@
+import io
 import os.path
-from pkg_resources import resource_filename
 import shutil
 import tempfile
 import unittest
 import zipfile
 from itertools import izip
-import pkg_resources
+from pkg_resources import resource_filename
 
 import mock
 
@@ -22,8 +22,8 @@ class Test_pull_traits_from_zoatrack(unittest.TestCase):
 
     def _urlretrieve(self, url, dest=None):
         temp_file = os.path.join(self.tmpdir, 'zoatrack_trait.zip')
-        shutil.copy(pkg_resources.resource_filename(__name__, 'zoatrack_trait.zip'),
-                            temp_file)
+        shutil.copy(resource_filename(__name__, 'zoatrack_trait.zip'),
+                    temp_file)
         return (temp_file, None)
 
     # TODO: this test should go into movelib ?
@@ -48,8 +48,10 @@ class Test_pull_traits_from_zoatrack(unittest.TestCase):
 
         # Check the files created
         self.assertEqual(count, 3)
-        self.assertEqual(trait_file, os.path.join(self.tmpdir, "zoatrack_trait.zip"))
-        zoatrack_zip = zipfile.ZipFile(os.path.join(self.tmpdir, "zoatrack_trait.zip"))
+        self.assertEqual(trait_file, os.path.join(self.tmpdir,
+                                                  "zoatrack_trait.zip"))
+        zoatrack_zip = zipfile.ZipFile(os.path.join(self.tmpdir,
+                                                    "zoatrack_trait.zip"))
         filelist = zoatrack_zip.namelist()
         self.assertEqual(len(filelist), 2)
         self.assertTrue('data/zoatrack_trait.csv' in filelist)
