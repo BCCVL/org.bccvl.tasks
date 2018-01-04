@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import json
 import logging
 import io
 import os
@@ -15,7 +14,7 @@ from org.bccvl import movelib
 from org.bccvl.movelib.utils import build_source, build_destination
 from org.bccvl.movelib.utils import zip_occurrence_data
 from org.bccvl.tasks.celery import app
-from org.bccvl.tasks.utils import traverse_dict, extract_metadata
+from org.bccvl.tasks.utils import extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
 from org.bccvl.tasks.utils import import_ala_job
@@ -29,6 +28,7 @@ MONTH = 'month'
 
 LOG = logging.getLogger(__name__)
 
+
 def _process_trait_data(datadir):
     # check that it is valid trait csv file
     count = 0
@@ -37,7 +37,9 @@ def _process_trait_data(datadir):
         csv_reader = csv.reader(csv_file)
 
         # Check if csv file header has the necessary columns
-        columns = set(['decimalLatitude', 'decimalLongitude', 'speciesScientificName', 'month', 'year', 'eventDate', 'organismId', 'eventId'])
+        columns = set(['decimalLatitude', 'decimalLongitude',
+                       'speciesScientificName', 'month', 'year', 'eventDate',
+                       'organismId', 'eventId'])
         csv_headers = next(csv_reader)
         missing_columns = ', '.join(columns.difference(csv_headers))
         if missing_columns:
@@ -49,7 +51,6 @@ def _process_trait_data(datadir):
                 raise Exception("Column '{}' must be before trait columns in the dataset".format(header))
 
         # rename column names
-        index = csv_headers
         csv_headers[csv_headers.index('decimalLatitude')] = LATITUDE
         csv_headers[csv_headers.index('decimalLongitude')] = LONGITUDE
         csv_headers[csv_headers.index('speciesScientificName')] = SPECIES
@@ -65,8 +66,10 @@ def _process_trait_data(datadir):
 
     # overwrite the trait csv file with the temp file
     os.remove(os.path.join(datadir, 'zoatrack_trait.csv'))
-    os.rename(os.path.join(datadir, 'trait_temp.csv'), os.path.join(datadir, 'zoatrack_trait.csv'))
+    os.rename(os.path.join(datadir, 'trait_temp.csv'),
+              os.path.join(datadir, 'zoatrack_trait.csv'))
     return count
+
 
 def download_zoatrack_trait_data(src_url, dest):
     # Get trait file
@@ -128,7 +131,7 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
 
         # Trait data file is a zip file; trait data file and citation file
         trait_zip, count = download_zoatrack_trait_data(src_url, tmpdir)
-        
+
         if count == 0:
             raise Exception("No trait data is found")
 
@@ -138,8 +141,8 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
 
         # build item to import
         imported_date = datetime.now().strftime('%d/%m/%Y')
-        title = "%s trait data" % (spName)
-        description = "Observed trait data for %s, imported from ZoaTack on %s" % (
+        title = "{} trait data".format(spName)
+        description = "Observed trait data for {}, imported from ZoaTack on {}".format(
             spName, imported_date)
 
         item = {
@@ -167,7 +170,8 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
                         trait_csv_filename]['metadata'][key]
 
         # TODO: clean this up
-        #    remove citation file from metadata, otherwise it will be interpreted as data layer within zip file
+        # remove citation file from metadata, otherwise it will be
+        # interpreted as data layer within zip file
         if 'data/zoatrack_citation.csv' in item.get('filemetadata', {}):
             del item['filemetadata']['data/zoatrack_citation.csv']
 
@@ -179,13 +183,13 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
         movelib.move(src, dst)
 
         # tell importer about new dataset (import it)
-        set_progress('RUNNING', 'Import zoatack trait data {0}'.format(spName), None, 
-            context)
+        set_progress('RUNNING', 'Import zoatack trait data {0}'.format(spName),
+                     None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
         import_job = import_ala_job([item], dest_url, context)
         import_job.link_error(set_progress_job(
-            "FAILED", "Import of zoatack trait data failed {0}".format(spName), None,
-            context))
+            "FAILED", "Import of zoatack trait data failed {0}".format(spName),
+            None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job(
             "COMPLETED", 'ZoaTack import {} complete'.format(spName), None,
@@ -193,9 +197,11 @@ def pull_traits_from_zoatrack(species, src_url, dest_url, context):
         (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
-        set_progress('FAILED', 'Download Traits from zoatack: {0}'.format(e), None, context)
+        set_progress('FAILED', 'Download Traits from zoatack: {0}'.format(e),
+                     None, context)
         import_cleanup(dest_url, context)
-        LOG.error('Download from %s to %s failed: %s', src_url, dest_url, e, exc_info=True)
+        LOG.error('Download from %s to %s failed: %s',
+                  src_url, dest_url, e, exc_info=True)
     finally:
         if tmpdir and os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

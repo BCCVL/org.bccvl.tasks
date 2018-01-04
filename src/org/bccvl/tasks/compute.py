@@ -737,8 +737,8 @@ def upload_outputs(args):
         move(source, destination)
         LOG.info('Upload from %s to %s succeeded.', src, dest)
         item['file']['failed'] = False
-    except Exception:
-        LOG.info('Upload from %s to %s failed', src, dest)
+    except Exception as e:
+        LOG.info('Upload from %s to %s failed', src, dest, exc_info=True)
         item['file']['failed'] = True
 
 

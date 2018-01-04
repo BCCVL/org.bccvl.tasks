@@ -28,7 +28,13 @@ def pull_occurrences_from_aekos(species, dest_url, context):
     dst = None
     try:
         tmpdir = tempfile.mkdtemp(prefix='aekos_download_')
-        src = build_source('aekos://occurrence?speciesNames={}'.format(species))
+        if isinstance(species, basestring):
+            species = [species]
+        src = build_source('aekos://occurrence?{}'.format(
+            urllib.urlencode({
+                'speciesNames': species
+            }, doseq=True)
+        ))
         dst = build_destination('file://{}'.format(tmpdir))
         movelib.move(src, dst)
         # extract metadata and do other stuff....
