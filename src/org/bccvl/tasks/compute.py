@@ -539,8 +539,9 @@ def add_geotif_metadata(tiffname, params):
         gtif = gdal.Open(tiffname, gdal.GA_Update)
         md = gtif.GetMetadata()
         if 'species_occurrence_dataset' in params:
-            md['Latin_Name'] = params['species_occurrence_dataset'].get('species') or params['species_occurrence_dataset'].get('filename', 'Unknown')
-            md['Common_Name'] = params['species_occurrence_dataset'].get('commonName') or params['species_occurrence_dataset'].get('filename', 'Unknown')
+            filename = os.path.basename(params['species_occurrence_dataset'].get('filename', 'Unknown'))
+            md['Latin_Name'] = params['species_occurrence_dataset'].get('species') or filename
+            md['Common_Name'] = params['species_occurrence_dataset'].get('commonName') or filename
 
         if 'future_climate_datasets' in params:
             md['Projection_Type'] = 'Future'
