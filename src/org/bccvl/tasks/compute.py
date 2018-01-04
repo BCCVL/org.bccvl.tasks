@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 from urlparse import urlsplit
 from zipfile import ZipFile, ZIP_DEFLATED
+from osgeo import gdal
 
 from celery.utils.log import get_task_logger
 
@@ -532,6 +533,45 @@ def transfer_projections(params, context, filelist):
     datamover.move(move_tasks, context)
 
 
+def add_geotif_metadata(tiffname, params):
+    # Add metadata to tiff file
+    try:
+        gtif = gdal.Open(tiffname, gdal.GA_Update)
+        md = gtif.GetMetadata()
+        if 'species_occurrence_dataset' in params:
+            md['Latin_Name'] = params['species_occurrence_dataset'].get('species') or params['species_occurrence_dataset'].get('filename', 'Unknown')
+            md['Common_Name'] = params['species_occurrence_dataset'].get('commonName') or params['species_occurrence_dataset'].get('filename', 'Unknown')
+
+        if 'future_climate_datasets' in params:
+            md['Projection_Type'] = 'Future'
+            md['Experiment_Type'] = 'Climate Change Experiment'
+            md['GCM'] = params.get('gcm', 'Unknown')
+            md['Emission_Scenarios'] = params.get('emsc', 'Unknown')
+            md['Year'] = params.get('year')
+        elif 'environmental_datasets' in params:
+            md['Projection_Type'] = 'Current'
+            if params.get('subset'):
+                md['Experiment_Type'] = 'Migratory Modelling Experiment'
+            else:
+                md['Experiment_Type'] = 'Species Distribution Modelling Experiment'
+        else:
+            # To do: other experiement types
+            pass
+        if 'function' in params:
+            md['Algorithm'] = params['function']
+
+        # To do: Remove the compute statistics below. This is done to get around
+        # the issue that metadata set by SetMetadata is not saved when a geotif
+        # file does not have a proper statistics.
+        gtif.GetRasterBand(1).ComputeStatistics(True)
+
+        gtif.SetMetadata(md)
+        gtif = None
+    except Exception as e:
+        # Do not fail if fail to add metadata
+        LOG.info('Fail to add metadata to geotiff file %s: %s', tiffname, e)
+
+
 def transfer_outputs(params, context):
     # items to import
     items = []
@@ -564,6 +604,12 @@ def transfer_outputs(params, context):
                 # already
                 if not filedef.get('skip', False):
                     items.append(createItem(fname, filedef, params['params']))
+                    
+                    # Add in metadata to the projection/climate change metric tiff files
+                    if filedef.get('genre', '') in ['DataGenreCP', 'DataGenreCP_ENVLOP', 
+                                                    'DataGenreFP', 'DataGenreFP_ENVLOP',
+                                                    'DataGenreClimateChangeMetricMap']:
+                        add_geotif_metadata(fname, params['params'])
             filelist.discard(fname)
     # check archives in outputmap
     for archname, archdef in params['result']['outputs'].get('archives', {}).items():
