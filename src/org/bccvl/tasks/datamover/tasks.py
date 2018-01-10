@@ -163,22 +163,19 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                     u'/', u'_').encode('idna')
                 # TODO: make sure fname contains only legal filename characters
                 fpath = os.path.join(tmpdir, fname)
-                file = io.open(fpath, 'wb')
-                fwriter = UnicodeCSVWriter(file)
+                # creat species file with header row
+                fwriter = UnicodeCSVWriter(io.open(fpath, 'w+b'))
                 fwriter.writerow(headers)
                 data[species] = {
-                    'file': file,
-                    'writer': fwriter,
                     'path': fpath,
                     'name': fname
                 }
-            data[species]['writer'].writerow(row)
-        # ok we have got all data and everything in separate files
-        # close all files
-        for species in data:
-            data[species]['file'].close()
-            del data[species]['file']
-            del data[species]['writer']
+            file = io.open(data[species]['path'], 'a+b')
+            fwriter = UnicodeCSVWriter(file)
+            fwriter.writerow(row)
+            # ensure data is written to disk
+            file.close()
+
         # extract metadata
         for species in data:
             data[species]['filemetadata'] = extract_metadata(
