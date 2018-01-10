@@ -581,10 +581,10 @@ def transfer_outputs(params, context):
                                  params['worker']['script']['name']),
                     os.path.join(params['env']['outputdir'],
                                  params['worker']['script']['name']))
-    shutil.copyfile(os.path.join(params['env']['scriptdir'],
-                                 'params.json'),
-                    os.path.join(params['env']['outputdir'],
-                                 'params.json'))
+    #shutil.copyfile(os.path.join(params['env']['scriptdir'],
+    #                             'params.json'),
+    #                os.path.join(params['env']['outputdir'],
+    #                             'params.json'))
     # build collection of all output files
     filelist = set()
     out_dir = unicode(params['env']['outputdir'])
