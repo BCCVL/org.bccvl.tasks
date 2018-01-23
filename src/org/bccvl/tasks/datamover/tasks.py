@@ -96,6 +96,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # step 1: update main dataset metadata
         tmpdir = tempfile.mkdtemp()
         userid = context.get('user', {}).get('id')
+        genre = context.get('genre', 'DataGenreSpeciesCollection')
         settings = app.conf.get('bccvl', {})
         src = build_source(url, userid, settings)
         dst = build_destination('file://{}'.format(tmpdir), settings)
@@ -205,8 +206,8 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                     'contenttype': 'text/csv',
                 },
                 'bccvlmetadata': {
-                    'genre': 'DataGenreSpeciesOccurrence',
-                    'categories': ['occurrence'],
+                    'genre': 'DataGenreSpeciesAbsence' if genre == 'DataGenreSpeciesAbsenceCollection' else 'DataGenreSpeciesOccurrence',
+                    'categories': ['absence'] if genre == 'DataGenreSpeciesAbsenceCollection' else ['occurrence'],
                     'species': {
                         'scientificName': species,
                     }
