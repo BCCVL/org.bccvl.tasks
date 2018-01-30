@@ -197,8 +197,12 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         items = []
         for species in data:
             # build item
+            if genre == 'DataGenreSpeciesAbsenceCollection':
+                title = u'{0} absences'.format(species)
+            else:
+                title = u'{0} occurrences'.format(species)
             item = {
-                'title': u'{0} occurrences'.format(species),
+                'title': title,
                 'description': '',
                 'file': {
                     'url': data[species]['url'],
