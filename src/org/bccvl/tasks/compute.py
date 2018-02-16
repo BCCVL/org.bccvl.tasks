@@ -797,6 +797,7 @@ def createItem(fname, info, params):
             'filename': name
         },
         'title': name,
+        'dataSource': 'experiment',
         'description': info.get('title', u''),
         'bccvlmetadata': bccvlmd,
         'filemetadata': filemd,
