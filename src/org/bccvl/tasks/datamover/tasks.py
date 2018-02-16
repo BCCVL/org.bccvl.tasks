@@ -195,6 +195,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         set_progress('RUNNING', 'Create datasets for {0}'.format(
             url), None, context)
         items = []
+
         for species in data:
             # build item
             if genre == 'DataGenreSpeciesAbsenceCollection':

@@ -605,9 +605,9 @@ def transfer_outputs(params, context):
                 # already
                 if not filedef.get('skip', False):
                     items.append(createItem(fname, filedef, params['params']))
-                    
+
                     # Add in metadata to the projection/climate change metric tiff files
-                    if filedef.get('genre', '') in ['DataGenreCP', 'DataGenreCP_ENVLOP', 
+                    if filedef.get('genre', '') in ['DataGenreCP', 'DataGenreCP_ENVLOP',
                                                     'DataGenreFP', 'DataGenreFP_ENVLOP',
                                                     'DataGenreClimateChangeMetricMap']:
                         add_geotif_metadata(fname, params['params'])

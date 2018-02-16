@@ -254,7 +254,9 @@ def import_result(items, results_dir, context, **kw):
                                  'items': items})
 
 
-# TODO: this task is not allowed to fail
+# FIXME: this task is not allowed to fail
+#        catch exceptions (dict access, etc.... )
+#           and make sure at least progress is applied
 @zope_task()
 def set_progress(state, message, rusage, context, **kw):
     jobtool = getUtility(IJobUtility)
@@ -267,6 +269,7 @@ def set_progress(state, message, rusage, context, **kw):
         jt = IJobTracker(kw['_context'])
         job = jt.get_job()
     jobtool.set_progress(job, state, message, rusage)
+
     if state in ('COMPLETED', 'FAILED'):
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state %s", state)
@@ -297,12 +300,14 @@ def set_progress(state, message, rusage, context, **kw):
                                   experiment_name, experiment_url, success)
                     else:
                         LOG.warn("Not sending email. Invalid parameters")
-        except Exception as e:
-            LOG.error(
-                'Got an exception in plone.set_progress while trying to send an email: %s', e, exc_info=True)
+            except Exception as e:
+                LOG.error(
+                    'Got an exception in plone.set_progress while trying to send an email: %s', e, exc_info=True)
     else:
+        # job not finished, just a state update
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state RUNNING")
+    # FIXME: can't find any references to _jobid anywhere ... is this even used somewhere?
     if '_jobid' not in kw:
         kw['_context'].reindexObject()  # TODO: reindex job state only?
         # Compute the experiement run time if all its jobs are completed
