@@ -298,8 +298,8 @@ def set_progress(state, message, rusage, context, **kw):
                     if fullname and email_addr and experiment_name and experiment_url:
                         send_mail(fullname, email_addr,
                                   experiment_name, experiment_url, success)
-                else:
-                    LOG.warn("Not sending email. Invalid parameters")
+                    else:
+                        LOG.warn("Not sending email. Invalid parameters")
         except Exception as e:
             LOG.error(
                 'Got an exception in plone.set_progress while trying to send an email: %s', e, exc_info=True)
