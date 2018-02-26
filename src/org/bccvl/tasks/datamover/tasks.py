@@ -24,6 +24,9 @@ from org.bccvl.tasks.utils import UnicodeCSVWriter
 LOG = logging.getLogger(__name__)
 
 
+def out_of_range(val, highval, lowval):
+    return val > highval or val < lowval
+
 @app.task()
 def move(move_args, context):
     errmsgs = []
@@ -63,6 +66,14 @@ def update_metadata(url, filename, contenttype, context):
                     or 'lat' not in item['filemetadata']['headers']
                     or 'lon' not in item['filemetadata']['headers']):
                 raise Exception("Missing 'lat'/'lon' column")
+
+            # validate coordinates are in valid range
+            bbox = item['filemetadata'].get('bounds')
+            if (bbox and (out_of_range(bbox.get('top', 100), 90.0, -90.0) or
+                    out_of_range(bbox.get('bottom', -100), 90.0, -90.0) or
+                    out_of_range(bbox.get('right', 190), 180.0, -180.0) or
+                    out_of_range(bbox.get('left', -190), 180.0, -180.0))):
+                raise Exception("Containing invalid 'lat'/'lon' values")
 
         set_progress('RUNNING',
                      'Import metadata for {0}'.format(url),
@@ -130,6 +141,14 @@ def import_multi_species_csv(url, results_dir, import_context, context):
                 or 'lat' not in occmd['headers']
                 or 'lon' not in occmd['headers']):
             raise Exception("Missing 'lat'/'lon' column")
+
+            # validate coordinates are in valid range
+            bbox = occmd.get('bounds')
+            if (bbox and (out_of_range(bbox.get('top', 100), 90.0, -90.0) or
+                        out_of_range(bbox.get('bottom', -100), 90.0, -90.0) or
+                        out_of_range(bbox.get('right', 190), 180.0, -180.0) or
+                        out_of_range(bbox.get('left', -190), 180.0, -180.0))):
+                raise Exception("Containing invalid 'lat'/'lon' values")
 
         set_progress('RUNNING',
                      'Import metadata for {0}'.format(url),
