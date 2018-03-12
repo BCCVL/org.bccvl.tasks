@@ -56,6 +56,9 @@ class ZipExtractor(object):
                 if zipinfo.filename.endswith('/'):
                     # skip directories
                     continue
+                if zipinfo.filename.startswith('__MACOSX/'):
+                    # skip OSX resource forks in zip files
+                    continue
                 # Is this our speciel bccvl metadata file?
                 if zipinfo.filename.endswith('/bccvl/metadata.json'):
                     ret['_bccvlmetadata.json'] = \
