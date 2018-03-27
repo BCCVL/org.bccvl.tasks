@@ -40,49 +40,35 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
                     "Waiting for {} seconds before trying again".format(t))
                 time.sleep(t)
             try:
-                client = dropbox.client.DropboxClient(access_token)
+                dbx = dropbox.Dropbox(access_token)
                 # if dir exists, delete it first.
                 try:
-                    m = client.metadata(foldername, include_deleted=False)
-                except dropbox.rest.ErrorResponse as e:
-                    if not e.status == 404:
+                    m = dbx.files_get_metadata(foldername, include_deleted=False)
+                except dropbox.exceptions.ApiError as e:
+                    if type(e.error).__name__ != 'GetMetadataError':
                         raise e
-                    else:
-                        pass  # no metadata means it does not exist
                 else:
-                    # is_deleted should not occur with include_deleted=False but the docs seemed a bit out of sync with the actual api
-                    # so better save than sorry.
-                    if not ('is_deleted' in m and m['is_deleted']):
-                        client.file_delete(metadata['title'])
+                    dbx.files_delete(metadata['title'])
 
-                client.file_create_folder(foldername)
-                client.file_create_folder(os.path.join(foldername, 'data'))
+                dbx.files_create_folder(foldername)
+                dbx.files_create_folder(os.path.join(foldername, 'data'))
 
-                datafiles = get_datafiles(tmpdir, include_prov=False)
+                datafiles = get_datafiles(tmpdir)
 
                 for fn in datafiles:
-                    client.put_file(
-                        os.path.join(foldername, os.path.basename(fn)),
-                        open(fn, 'rb'))
+                    with open(fn, 'rb') as f:
+                        dbx.files_upload(
+                            f.read(),
+                            os.path.join(foldername, os.path.basename(fn)))
                     uploaded.append(fn)
 
-                mets_fn = os.path.join(tmpdir, 'mets.xml')
-                client.put_file(
-                    os.path.join(foldername, os.path.basename(mets_fn)),
-                    open(mets_fn, 'rb'))
-                uploaded.append(mets_fn)
-
-                prov_fn = os.path.join(tmpdir, 'prov.ttl')
-                client.put_file(
-                    os.path.join(foldername, os.path.basename(prov_fn)),
-                    open(prov_fn, 'rb'))
-                uploaded.append(prov_fn)
-
-                expmd_fn = os.path.join(tmpdir, 'expmetadata.txt')
-                client.put_file(
-                    os.path.join(foldername, os.path.basename(expmd_fn)),
-                    open(expmd_fn, 'rb'))
-                uploaded.append(expmd_fn)
+                for fname in ('mets.xml', 'prov.ttl', 'expmetadata.txt'):
+                    fn = os.path.join(tmpdir, fname)
+                    with open(fn, 'rb') as f:
+                        dbx.files_upload(
+                            f.read(),
+                            os.path.join(foldername, os.path.basename(fn)))
+                    uploaded.append(fn)
 
                 msg = "\n".join(uploaded)
                 send_mail(
@@ -96,8 +82,8 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
                     "Upload of '{}' to dropbox complete.".format(
                         metadata['title']))
                 break
-            except dropbox.rest.ErrorResponse as e:
-                if not e.status == 503:
+            except dropbox.exceptions.ApiError as e:
+                if type(e.error).__name__ != 'UploadError':
                     raise e
                 else:
                     last_error = str(e)
