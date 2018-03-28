@@ -3,6 +3,7 @@ from random import randint
 import shutil
 import time
 import os.path
+import re
 
 import dropbox
 
@@ -27,7 +28,9 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
             str(e))
         LOG.error(msg, exc_info=True)
         send_mail(context, serviceid, metadata['title'], msg, success=False)
-    foldername = metadata['title']
+    foldername = metadata['title'].strip('/')
+    foldername = '/' + re.sub('[\\/:*?"<>|]', '_', foldername)
+
     try:
         success = False
         for i in range(5):  # we'll give it 5 tries
@@ -48,18 +51,18 @@ def export_dropbox(siteurl, fileurls, serviceid, context, conf):
                     if type(e.error).__name__ != 'GetMetadataError':
                         raise e
                 else:
-                    dbx.files_delete(metadata['title'])
+                    dbx.files_delete(foldername)
 
                 dbx.files_create_folder(foldername)
                 dbx.files_create_folder(os.path.join(foldername, 'data'))
 
-                datafiles = get_datafiles(tmpdir)
+                datafiles = get_datafiles(tmpdir, include_prov=False)
 
                 for fn in datafiles:
                     with open(fn, 'rb') as f:
                         dbx.files_upload(
                             f.read(),
-                            os.path.join(foldername, os.path.basename(fn)))
+                            os.path.join(foldername, 'data', os.path.basename(fn)))
                     uploaded.append(fn)
 
                 for fname in ('mets.xml', 'prov.ttl', 'expmetadata.txt'):
