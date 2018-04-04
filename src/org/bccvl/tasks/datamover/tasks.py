@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import csv
 import io
 import logging
 import os.path
@@ -26,6 +25,7 @@ LOG = logging.getLogger(__name__)
 
 def out_of_range(val, highval, lowval):
     return val > highval or val < lowval
+
 
 @app.task()
 def move(move_args, context):

@@ -3,8 +3,6 @@ import os.path
 import shutil
 import tempfile
 import unittest
-import zipfile
-from itertools import izip
 from pkg_resources import resource_filename
 
 import mock
