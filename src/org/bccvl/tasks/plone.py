@@ -27,6 +27,7 @@ from zope.component.hooks import setSite, getSite
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 from org.bccvl.site.job.interfaces import IJobTracker, IJobUtility
 from org.bccvl.site.interfaces import IExperimentJobTracker
+from org.bccvl.site.stats.interfaces import IStatsUtility
 import pkg_resources
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -274,20 +275,39 @@ def set_progress(state, message, rusage, context, **kw):
         jobtool.set_state(job, state)
         LOG.info("Plone: Update job state %s", state)
 
-        # FIXME: we sholud probably send emails in another place (or as additional task in chain?)
-        #        there are too many things that can go wrong here and this task is not allowed to
-        #        fail (throw an exception) otherwise the user will never see a status update
-        # FIXME: should be a better check here, we want to send email only
-        #        for experiment results, not for dataset imports (i.e. ala)
-        try:
-            if 'experiment' in context:
-                # check if this is the first or last result
-                jt = IExperimentJobTracker(kw['_context'].__parent__)
-                completed = [st for st in jt.states
-                             if st[1] in ('COMPLETED', 'FAILED')]
-                first = len(completed) == 1
-                last = jt.state in ('COMPLETED', 'FAILED', 'FINISHED')
+        # count stats for datasets
+        if job.type in ('org.bccvl.content.dataset',
+                        'org.bccvl.content.remotedataset',
+                        'org.bccvl.content.multispeciesdataset'):
+            getUtility(IStatsUtility).count_job(
+                function=kw['_context'].dataSource,
+                portal_type=kw['_context'].portal_type,
+                state=job.state
+            )
+        elif 'experiment' in context:
+            # collect job stats
+            rusage = job.rusage.get('rusage', {})
+            rusage = (rusage.get('ru_utime', 0) + rusage.get('ru_stime', 0))
+            getUtility(IStatsUtility).count_job(
+                function=job.function,
+                portal_type=kw['_context'].portal_type,
+                runtime=rusage,
+                state=state
+            )
 
+            # check if this is the first or last result
+            jt = IExperimentJobTracker(kw['_context'].__parent__)
+            completed = [st for st in jt.states
+                         if st[1] in ('COMPLETED', 'FAILED')]
+            first = len(completed) == 1
+            last = jt.state in ('COMPLETED', 'FAILED', 'FINISHED')
+
+            # FIXME: we sholud probably send emails in another place (or as additional task in chain?)
+            #        there are too many things that can go wrong here and this task is not allowed to
+            #        fail (throw an exception) otherwise the user will never see a status update
+            # FIXME: should be a better check here, we want to send email only
+            #        for experiment results, not for dataset imports (i.e. ala)
+            try:
                 if first or last:
                     # send email
                     fullname = context['user']['fullname']
@@ -300,9 +320,9 @@ def set_progress(state, message, rusage, context, **kw):
                                   experiment_name, experiment_url, success)
                     else:
                         LOG.warn("Not sending email. Invalid parameters")
-        except Exception as e:
-            LOG.error(
-                'Got an exception in plone.set_progress while trying to send an email: %s', e, exc_info=True)
+            except Exception as e:
+                LOG.error(
+                    'Got an exception in plone.set_progress while trying to send an email: %s', e, exc_info=True)
     else:
         # job not finished, just a state update
         jobtool.set_state(job, state)
@@ -313,11 +333,21 @@ def set_progress(state, message, rusage, context, **kw):
         # Compute the experiement run time if all its jobs are completed
         # The experiment is the parent job
         jt = IExperimentJobTracker(kw['_context'].__parent__, None)
-        if jt and jt.state in ('COMPLETED', 'FAILED'):
+        # whole experiment finished?
+        if jt and jt.state in ('COMPLETED', 'FINISHED', 'FAILED'):
             exp = jt.context
             exp.runtime = time.time() - (exp.created().millis() / 1000.0)
+            # experiment finished ... collect overall experiment stats
+            getUtility(IStatsUtility).count_experiment(
+                job.userid,
+                exp.portal_type,
+                exp.runtime,
+                state=jt.state
+            )
+            # TODO: what about FINISHED state?
         if jt:
             jt.context.reindexObject()
+
     LOG.info("Plone: Update job progress: %s, %s, %s", state, message, context)
 
 
