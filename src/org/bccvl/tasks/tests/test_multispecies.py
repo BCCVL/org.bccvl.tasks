@@ -45,10 +45,11 @@ class Test_multispecies(unittest.TestCase):
         src_url = 'file:///multispecies.csv'
 
         context = {
-          'user': {
-            'id': 'userid'
-          },
-          'context': '/my/object/path'
+            'user': {
+                'id': 'userid'
+            },
+            'context': '/my/object/path',
+            'dataSource': 'upload'
         }
         import_context = {}
         import_multi_species_csv(src_url, 'file://' + self.tmpdir, import_context, context)
