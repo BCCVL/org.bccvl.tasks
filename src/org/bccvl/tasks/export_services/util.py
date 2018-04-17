@@ -144,10 +144,9 @@ def send_mail(
             service_name=serviceid.title())
         msg = MIMEText(body)
         msg['Subject'] = "Your upload to {0} failed".format(serviceid.title())
-    msg['From'] = "Biodiversity & Climate Change Virtual Lab <bccvl@griffith.edu.au>"
+    msg['From'] = "Biodiversity & Climate Change Virtual Lab <support@bccvl.org.au>"
     msg['To'] = user_address
 
     server = smtplib.SMTP("localhost")
-    # server = smtplib.SMTP("smtp.griffith.edu.au")
-    server.sendmail("bccvl@griffith.edu.au", user_address, msg.as_string())
+    server.sendmail("support@bccvl.org.au", user_address, msg.as_string())
     server.quit()
