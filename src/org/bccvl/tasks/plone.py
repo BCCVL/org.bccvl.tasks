@@ -286,7 +286,10 @@ def set_progress(state, message, rusage, context, **kw):
             )
         elif 'experiment' in context:
             # collect job stats
-            rusage = job.rusage.get('rusage', {})
+            if job.rusage is not None:
+                rusage = job.rusage.get('rusage', {})
+            else:
+                rusage = {}
             rusage = (rusage.get('ru_utime', 0) + rusage.get('ru_stime', 0))
             getUtility(IStatsUtility).count_job(
                 function=job.function,
