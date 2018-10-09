@@ -32,6 +32,9 @@ import pkg_resources
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# task priority
+HIGH_PRIORITY = 9
+LOW_PRIORITY  = 1
 
 LOG = logging.getLogger(__name__)
 
@@ -58,14 +61,14 @@ class AfterCommitTask(Task):
         # but we don't have one available yet
 
 
-def after_commit_task(task, *args, **kw):
+def after_commit_task(task, priority=HIGH_PRIORITY, *args, **kw):
     # send task after a successful transaction
     def hook(success):
         if success:
             # TODO: maybe if apply fails try to send a state update failed
             # FIXME: this is the earliest possible place wher i can get a
             # taskid
-            result = task.apply_async(args=args, kwargs=kw)
+            result = task.apply_async(args=args, kwargs=kw, priority=priority)
     transaction.get().addAfterCommitHook(hook)
 
 
