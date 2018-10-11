@@ -150,7 +150,7 @@ CELERY_ROUTES = [
 ]
 
 CELERY_QUEUES = {
-    "worker": {"routing_key": "worker", "max_priority": 10},
+    "worker": {"routing_key": "worker", "queue_arguments": {"x-max-priority": 10}},
     "datamover": {"routing_key": "datamover"},
     "plone": {"routing_key": "plone"}
 }
