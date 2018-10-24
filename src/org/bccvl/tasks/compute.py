@@ -2,6 +2,8 @@ from __future__ import absolute_import
 
 from csv import DictReader
 from decimal import Decimal, InvalidOperation
+from pydap.client import open_url
+import csv
 import glob
 import json
 import mimetypes
@@ -18,7 +20,7 @@ import subprocess
 import tempfile
 from urlparse import urlsplit
 from zipfile import ZipFile, ZIP_DEFLATED
-from osgeo import gdal
+from osgeo import gdal, ogr, osr
 
 from celery.utils.log import get_task_logger
 
@@ -191,6 +193,124 @@ def get_process_env(params):
     proc_env['USER'] = pw_ent.pw_name
     return proc_env
 
+# Return a list of index for the specified headers
+def _get_degree_step(degree, start_degree, step_res):
+    return int(abs(round((degree - start_degree)/step_res)))
+
+def _transform_region(modelling_region):
+    polygons = []
+    if modelling_region:
+        json_constraint = json.loads(modelling_region)
+        if json_constraint.get('features'):
+            polygons = [ogr.CreateGeometryFromJson(json.dumps(p['geometry'])) for p in json_constraint['features']]
+
+        # Get the CRS of modeeling region and transform region to EPSG:4326
+        src_epsg = int(json_constraint.get('crs', {}).get('properties', {}).get('name').split('crs:')[1].split(':')[-1])
+        dst_epsg = 4326
+        if src_epsg != dst_epsg:
+            src_spatialRef = osr.SpatialReference()
+            src_spatialRef.ImportFromEPSG(src_epsg)
+            dst_spatialRef = osr.SpatialReference()
+            dst_spatialRef.ImportFromEPSG(dst_epsg)
+            coordTransform = osr.CoordinateTransformation(src_spatialRef, dst_spatialRef)
+            polygons = [p.Transform(coordTransform) for p in polygons]
+    return polygons
+
+def _in_region(regions, location):
+    # constraint region is empty, no constraint
+    if not regions:
+        return True
+    for p in regions:
+        if p.contains(location):
+            return True
+    return False
+
+def merge_temporal_env(params):
+    # For each row of the trait-data with valid ISO 8601:2004(E) formatted date (i.e. yyyy-mm-dd),
+    # get the env data from the specified data provider.
+    trait_data_path = params['traits_dataset']['filename']
+
+    # read trait-data csv file
+    with open(trait_data_path, 'r') as trait_fp:
+        trait_reader = csv.reader(trait_fp)
+        csv_header = trait_reader.next()
+        header_indexes = { col: csv_header.index(col) for col in csv_header}
+
+        # Make sure  lat, lon and date are present
+        if 'lat' not in csv_header or \
+           'lon' not in csv_header or \
+           'date' not in csv_header:
+            return None
+
+        # Open the temporal env data using openDap
+        env_layers = []
+        for lyr in params['environmental_datasets']:
+            colname = lyr.get('layer')
+            dtype = lyr.get('type')
+            csv_header.append(colname)
+            db = open_url(lyr.get('downloadurl'), output_grid=False)
+            # Extract the starting and ending 
+            gatt = db.attributes['NC_GLOBAL']
+            env_layers.append({
+                'colname': colname,
+                'type': dtype
+                'env_con': db.get(colname),
+                'lon_min': gatt.get('geospatial_lon_min'),
+                'lon_max': gatt.get('geospatial_lon_max'),
+                'lat_min': gatt.get('geospatial_lat_min'),
+                'lat_max': gatt.get('geospatial_lat_max'),
+                'lon_res': gatt.get('geospatial_lon_resolution'),
+                'lat_res': gatt.get('geospatial_lat_resolution'),
+                'start_date': datetime.datetime(1970,1,1)
+            })
+
+            # Add environmental variable to the trait parameter
+            trait_params = params('traits_dataset_params')
+            trait_params[colname] = 'env_var_con' if dtype == 'continuous' else 'env_var_cat'
+
+        # Write the trait-env data to a temp file. Filter out trait-data that is
+        # not within the constraint region
+        constraint_region = _transform_region(params.get('modelling_region'))
+        fd, trait_env_data_path = tempfile.mkstemp(dir=os.path.dirname(trait_data_path))
+        with open(trait_env_data_path, 'w') as trait_env_fp:
+            csv_writer = csv.writer(trait_env_fp)
+            csv_writer.writerow(csv_header)
+            # Make sure date is valid
+            for row in trait_reader:
+                try:
+                    edate = datetime.datetime.strptime(row[header_indexes['date']].split()[0], '%Y-%m-%d')
+                    lon = float(row[header_indexes['lon']])
+                    lat = float(row[header_indexes['lat']])
+
+                    # check if the point is within the constraint region
+                    trait_point = ogr.Geometry(org.wkbPoint)
+                    trait_point.AddPoint(lon, lat)
+                    if not _in_region(constraint_region, trait_point):
+                        continue
+                except Exception as e:
+                    continue
+                # fetch the env data values, and append it to next column
+                env_all_empty = True
+                for layer in env_layers:
+                    try:
+                        lon_step = _get_degree_step(lon, layer.get('lon_min'), layer.get('lon_res'))
+                        lat_step = _get_degree_step(lat, layer.get('lat_min') if layer.get('lat_max') > 0 else layer.get('lat_max'), layer.get('lat_res'))
+                        date_step = (edate - layer.get('start_date')).days
+                        value = layer.get('env_con')[date_step, lat_step, lon_step].data[0][0][0]
+                        row.append(value)
+                        env_all_empty = False
+                    except Exception as e:
+                        row.append('')
+                        continue
+                # Add the trait data only if there is env data
+                if not env_all_empty:
+                    csv_writer.writerow(row)
+        # close the file handler
+        os.close(fd)
+
+    # Overwrite the original trait file
+    shutil.move(trait_env_data_path, trait_data_path)
+
 
 def run_script(wrapper, params, context):
     # TODO: there are many little things that can fail here, and we
@@ -207,6 +327,12 @@ def run_script(wrapper, params, context):
 
         # transfer input files
         transfer_inputs(params, context)
+
+        # merge the temporal env data with the trait-data.
+        # This is only required for STM-temporal, and exploration-plot-temporal
+        if params['params'].get('temporal_env', False):
+            merge_temporal_env(params['params'])
+
         # create script
         scriptname = create_scripts(params, context)
 
