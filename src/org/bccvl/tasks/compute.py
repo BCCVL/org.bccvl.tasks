@@ -253,7 +253,7 @@ def merge_temporal_env(params):
             gatt = db.attributes['NC_GLOBAL']
             env_layers.append({
                 'colname': colname,
-                'type': dtype
+                'type': dtype,
                 'env_con': db.get(colname),
                 'lon_min': gatt.get('geospatial_lon_min'),
                 'lon_max': gatt.get('geospatial_lon_max'),

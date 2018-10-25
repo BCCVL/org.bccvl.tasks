@@ -30,6 +30,7 @@ setup(
     zip_safe=False,
     install_requires=[
         'setuptools',
+        'pydap',
         'celery < 4',
         'org.bccvl.movelib',
     ],
