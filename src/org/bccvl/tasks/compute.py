@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 from csv import DictReader
 from decimal import Decimal, InvalidOperation
-from pydap.client import open_url
 import csv
 import glob
 import json
@@ -20,8 +19,8 @@ import subprocess
 import tempfile
 from urlparse import urlsplit
 from zipfile import ZipFile, ZIP_DEFLATED
-from osgeo import gdal, ogr, osr
 
+from osgeo import gdal, ogr, osr
 from celery.utils.log import get_task_logger
 
 from org.bccvl.movelib import move
@@ -244,6 +243,7 @@ def merge_temporal_env(params):
 
         # Open the temporal env data using openDap
         env_layers = []
+        from pydap.client import open_url
         for lyr in params['environmental_datasets']:
             colname = lyr.get('layer')
             dtype = lyr.get('type')
