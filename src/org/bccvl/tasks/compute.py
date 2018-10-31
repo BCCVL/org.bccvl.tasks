@@ -239,7 +239,7 @@ def merge_temporal_env(params):
         if 'lat' not in csv_header or \
            'lon' not in csv_header or \
            'date' not in csv_header:
-            return None
+            raise Exception('Bad trait data: Missing lat/lon/date column')
 
         # Open the temporal env data using openDap
         env_layers = []
@@ -265,8 +265,7 @@ def merge_temporal_env(params):
             })
 
             # Add environmental variable to the trait parameter
-            trait_params = params('traits_dataset_params')
-            trait_params[colname] = 'env_var_con' if dtype == 'continuous' else 'env_var_cat'
+            params['traits_dataset_params'][colname] = 'env_var_con' if dtype == 'continuous' else 'env_var_cat'
 
         # Write the trait-env data to a temp file. Filter out trait-data that is
         # not within the constraint region
