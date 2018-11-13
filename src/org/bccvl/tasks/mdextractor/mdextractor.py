@@ -276,6 +276,7 @@ class TiffExtractor(object):
                         band.SetNoDataValue(float(nodatavalue))
                         (min_, max_, mean, stddev) = band.ComputeStatistics(False)
                         band.SetStatistics(min_, max_, mean, stddev)
+                        ds.FlushCache()
             except Exception:
                 pass
 
