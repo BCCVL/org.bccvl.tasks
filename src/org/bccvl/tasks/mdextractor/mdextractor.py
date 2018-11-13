@@ -175,7 +175,7 @@ class TiffExtractor(object):
     def _get_gdal_metadata(self, filename):
         # let's do GDAL here ? if it fails do Hachoir
         from osgeo import gdal, osr, gdalconst
-        ds = gdal.Open(filename, gdal.GA_ReadOnly)
+        ds = gdal.Open(filename, gdal.GA_Update)
 
         # TODO: get bounding box ... Geotransform used to convert from pixel to SRS
         #       geotransform may be None?
@@ -267,6 +267,18 @@ class TiffExtractor(object):
         # Extract GDAL metadata
         for numband in range(1, ds.RasterCount + 1):
             band = ds.GetRasterBand(numband)
+            try:
+                if gdal.GetDataTypeName(band.DataType) == 'Float32':
+                    # Convert nodata value to float32, and update statistic
+                    nodatavalue = band.GetNoDataValue()
+                    if nodatavalue:
+                        nodatavalue = np.float32(nodatavalue)
+                        band.SetNoDataValue(float(nodatavalue))
+                        (min_, max_, mean, stddev) = band.ComputeStatistics(False)
+                        band.SetStatistics(min_, max_, mean, stddev)
+            except Exception:
+                pass
+
             (min_, max_, mean, stddev) = band.ComputeStatistics(False)
             banddata = {
                 'data type': gdal.GetDataTypeName(band.DataType),
