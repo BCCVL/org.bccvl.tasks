@@ -6,6 +6,7 @@ import os
 import os.path
 import uuid
 import zipfile
+import numpy as np
 
 from osgeo import ogr
 
