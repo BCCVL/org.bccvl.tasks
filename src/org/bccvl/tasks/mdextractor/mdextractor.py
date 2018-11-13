@@ -1,12 +1,12 @@
 import io
 import json
+import struct
 import logging
 import mimetypes
 import os
 import os.path
 import uuid
 import zipfile
-import numpy as np
 
 from osgeo import ogr
 
@@ -270,11 +270,11 @@ class TiffExtractor(object):
             band = ds.GetRasterBand(numband)
             try:
                 if gdal.GetDataTypeName(band.DataType) == 'Float32':
-                    # Convert nodata value to float32, and update statistic
+                    # Convert nodata value to float32, and update statistic and save it.
                     nodatavalue = band.GetNoDataValue()
                     if nodatavalue:
-                        nodatavalue = np.float32(nodatavalue)
-                        band.SetNoDataValue(float(nodatavalue))
+                        nodatavalue, = struct.unpack('f', struct.pack('f', nodatavalue))
+                        band.SetNoDataValue(nodatavalue)
                         (min_, max_, mean, stddev) = band.ComputeStatistics(False)
                         band.SetStatistics(min_, max_, mean, stddev)
                         ds.FlushCache()
