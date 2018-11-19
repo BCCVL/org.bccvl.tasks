@@ -175,8 +175,9 @@ class TiffExtractor(object):
 
     def _get_gdal_metadata(self, filename):
         # let's do GDAL here ? if it fails do Hachoir
+        vsizip = filename.startswith('/vsizip')
         from osgeo import gdal, osr, gdalconst
-        ds = gdal.Open(filename, gdal.GA_Update)
+        ds = gdal.Open(filename, gdal.GA_ReadOnly if vsizip else gdal.GA_Update)
 
         # TODO: get bounding box ... Geotransform used to convert from pixel to SRS
         #       geotransform may be None?
@@ -277,7 +278,9 @@ class TiffExtractor(object):
                         band.SetNoDataValue(nodatavalue)
                         (min_, max_, mean, stddev) = band.ComputeStatistics(False)
                         band.SetStatistics(min_, max_, mean, stddev)
-                        ds.FlushCache()
+                        # Can save the file only if it is not a vsizip file
+                        if not vsizip:
+                            ds.FlushCache()
             except Exception:
                 pass
 
