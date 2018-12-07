@@ -101,6 +101,7 @@ def download_occurrence_from_ala(params, context, multispecies=False):
 
     # Combine all the occurrence and citation files from each download into 1 dataset
     imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
+    isTrait = params[0].get('trait', 0)
     if len(results) > 1:
         destdir = tempfile.mkdtemp(prefix='ala_download_')
         results.append(destdir)
@@ -120,23 +121,28 @@ def download_occurrence_from_ala(params, context, multispecies=False):
             title = ds_name
         else:
             ds_name = ','.join([sp['scientificName'] for sp in species])
-            title = "{} occurrences".format(ds_name)
-        description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
-
+            title = "{0} {1}".format(ds_name, 'trait data' if isTrait == 1 else 'occurrences')
+        description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait == 1 else 'Observed occurrences')
     else:
         ds_name = ', '.join([name for name in ds_names if name])
         if ds_name:
             title = ds_name
-            description = "Observed occurrences for {0}, imported from ALA on {1}".format(ds_name, imported_date)
+            description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait == 1 else 'Observed occurrences')
         else:
             title = ala_ds['title']
             description = ala_ds['description']
         species = species[0]
 
     # build bccvl metadata:
+    if isTrait == 1:
+        genre = 'DataGenreTraits'
+        categories = ['traits']
+    else:
+        genre = 'DataGenreSpeciesCollection' if multispecies or len(results) > 1 else 'DataGenreSpeciesOccurrence' 
+        categories = ['multispecies' if multispecies or len(results) > 1 else 'occurrence']
     bccvlmd = {
-        'genre': 'DataGenreSpeciesCollection' if multispecies or len(results) > 1 else 'DataGenreSpeciesOccurrence',
-        'categories': ['multispecies' if multispecies or len(results) > 1 else 'occurrence'],
+        'genre': genre,
+        'categories': categories,
         'species': species
     }
 
