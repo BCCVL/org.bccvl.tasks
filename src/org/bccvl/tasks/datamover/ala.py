@@ -22,26 +22,38 @@ from org.bccvl.tasks.utils import UnicodeCSVWriter
 
 LOG = logging.getLogger(__name__)
 
-# Combine the specified named csv file in the source directories
 
+def get_headers(csvfiles):
+    headers = []
+    for csvfile in csvfiles:
+        if not os.path.isfile(csvfile):
+            continue
+        with io.open(csvfile, 'r') as f:
+            csv_reader = UnicodeCSVReader(f)
+            columns = next(csv_reader)
+            for col in columns:
+                if col not in headers:
+                    headers.append(col)
+    return headers
 
-def combine_csv(srcdirs, filename, destdir):
-    with io.open(os.path.join(destdir, filename), mode='bw') as cf:
+# Combine the specified csv files
+def combine_csv(csvfiles, destfile):
+    # Combine all the columns from the csv files.
+    headers = get_headers(csvfiles)
+    with io.open(destfile, mode='bw') as cf:
         csv_writer = UnicodeCSVWriter(cf)
-        headers_written = False
-
-        for srcdir in srcdirs:
-            filepath = os.path.join(srcdir, filename)
-            if not os.path.isfile(filepath):
+        csv_writer.writerow(headers)
+        # write the value for each column in the combined header;
+        # empty if column is not available
+        for csvfile in csvfiles:
+            if not os.path.isfile(csvfile):
                 continue
-            with io.open(filepath, 'r') as f:
+            with io.open(csvfile, 'r') as f:
                 csv_reader = UnicodeCSVReader(f)
-                headers = next(csv_reader)
-                if not headers_written:
-                    csv_writer.writerow(headers)
-                    headers_written = True
+                columns = next(csv_reader)
                 for row in csv_reader:
-                    csv_writer.writerow(row)
+                    new_row = [ row[columns.index(col)] if col in columns else '' for col in headers]
+                    csv_writer.writerow(new_row)
 
 
 def download_occurrence_from_ala(params, context, multispecies=False):
@@ -56,7 +68,8 @@ def download_occurrence_from_ala(params, context, multispecies=False):
         query = dataset['query']    # i.e. qid:<qid> or lsid:<lsid>
         qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
         email = context.get('user', {}).get('email', '')
-        ds_names.append(dataset.get('name', ''))
+        if dataset.get('name', '').strip():
+            ds_names.append(dataset.get('name', '').strip())
 
         # downlaod occurrence file
         # TODO: ignore file if not successfully download (exception), but continue??
@@ -101,13 +114,17 @@ def download_occurrence_from_ala(params, context, multispecies=False):
 
     # Combine all the occurrence and citation files from each download into 1 dataset
     imported_date = datetime.datetime.now().strftime('%d/%m/%Y')
-    isTrait = params[0].get('trait', 0)
+    isTrait = any([p.get('trait', 0) for p in params])
     if len(results) > 1:
         destdir = tempfile.mkdtemp(prefix='ala_download_')
         results.append(destdir)
         os.mkdir(os.path.join(destdir, 'data'))
-        combine_csv(results[:-1], 'data/ala_occurrence.csv', destdir)
-        combine_csv(results[:-1], 'data/ala_citation.csv', destdir)
+        combine_csv(
+            [os.path.join(d, 'data/ala_occurrence.csv') for d in results[:-1]],
+            os.path.join(destdir, 'data/ala_occurrence.csv'))
+        combine_csv(
+            [os.path.join(d, 'data/ala_citation.csv') for d in results[:-1]],
+            os.path.join(destdir, 'data/ala_citation.csv'))
 
         # Zip it out and point to the new zip file
         ala_csv = os.path.join(destdir, 'ala_occurrence.zip')
@@ -121,20 +138,20 @@ def download_occurrence_from_ala(params, context, multispecies=False):
             title = ds_name
         else:
             ds_name = ','.join([sp['scientificName'] for sp in species])
-            title = "{0} {1}".format(ds_name, 'trait data' if isTrait == 1 else 'occurrences')
-        description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait == 1 else 'Observed occurrences')
+            title = "{0} {1}".format(ds_name, 'trait data' if isTrait else 'occurrences')
+        description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait else 'Observed occurrences')
     else:
         ds_name = ', '.join([name for name in ds_names if name])
         if ds_name:
             title = ds_name
-            description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait == 1 else 'Observed occurrences')
+            description = "{2} for {0}, imported from ALA on {1}".format(ds_name, imported_date, 'Trait records' if isTrait else 'Observed occurrences')
         else:
             title = ala_ds['title']
             description = ala_ds['description']
         species = species[0]
 
     # build bccvl metadata:
-    if isTrait == 1:
+    if isTrait:
         genre = 'DataGenreTraits'
         categories = ['traits']
     else:
