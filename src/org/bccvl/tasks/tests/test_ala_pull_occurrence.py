@@ -164,7 +164,6 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
                 with open(filename2, "rtU") as b1:
                     # Note that "all" and "izip" are lazy
                     # (will stop at the first line that's not identical)
-                    import ipdb; ipdb.set_trace()
                     res = []
                     for lineA, lineB in izip(a1.xreadlines(), b1.xreadlines()):
                         diff = [i for i in range(len(lineA)) if lineA[i] != lineB[i]]
