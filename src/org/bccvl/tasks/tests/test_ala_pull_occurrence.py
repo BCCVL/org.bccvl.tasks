@@ -160,24 +160,15 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
             return
 
         def areFilesIdentical(filename1, filename2):
-            with open(filename1, "rtU") as a1:
-                with open(filename2, "rtU") as b1:
+            with open(filename1, "rtU") as a:
+                with open(filename2, "rtU") as b:
                     # Note that "all" and "izip" are lazy
                     # (will stop at the first line that's not identical)
-                    res = []
-                    for lineA, lineB in izip(a1.xreadlines(), b1.xreadlines()):
-                        diff = [i for i in range(len(lineA)) if lineA[i] != lineB[i]]
-                        #if diff:
-                        print diff
-                        print lineA, lineB
-                        res.append(False if diff else True )
-                    #res = [lineA == lineB for lineA, lineB in izip(a1.xreadlines(), b1.xreadlines())]
-                    return all(res)
-                    #return all(
-                    #    lineA == lineB
-                    #    for lineA, lineB
-                    #    in izip(a1.xreadlines(), b1.xreadlines())
-                    #)
+                    return all(
+                        lineA == lineB
+                        for lineA, lineB
+                        in izip(a.xreadlines(), b.xreadlines())
+                    )
 
         mock_occur.side_effect = fetch_occur_data
         mock_md.side_effect = fetch_meta_data
