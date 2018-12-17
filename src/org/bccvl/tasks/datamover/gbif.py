@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 @app.task()
-def pull_occurrences_from_gbif(lsid, dest_url, context):
+def pull_occurrences_from_gbif(lsid, dest_url, context, import_multspecies_params):
     # 1. set progress
     set_progress('RUNNING', 'Download {0} from gbif'.format(lsid), None, context)
     # 2. do move
@@ -90,7 +90,7 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
         src = build_source('file://{}'.format(gbif_csv))
         dst = build_destination(os.path.join(dest_url, os.path.basename(gbif_csv)), app.conf.get('bccvl', {}))
         item['file']['url'] = dst['url']
-        movelib.move(src, dst)
+        movelib.move(src, dst)          # tell importer about new dataset (import it)
         # tell importer about new dataset (import it)
         set_progress('RUNNING', 'Import gbif data {0}'.format(lsid), None, context)
         cleanup_job = import_cleanup_job(dest_url, context)
@@ -98,7 +98,19 @@ def pull_occurrences_from_gbif(lsid, dest_url, context):
         import_job.link_error(set_progress_job("FAILED", "Import of gbif data failed {0}".format(lsid), None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job("COMPLETED", 'GBIF import {} complete'.format(lsid), None, context)
-        (import_job | cleanup_job | finish_job).delay()
+
+        # Split multi-species dataset
+        if import_multspecies_params:
+            import_multispecies_job = import_multi_species_csv_job(item.get('file').get('url'),
+                                                                   import_multspecies_params['results_dir'],
+                                                                   import_multspecies_params['import_context'],
+                                                                   context)
+            import_multispecies_job.link_error(set_progress_job(
+                "FAILED", u"Split multi-species dataset '{0}' from GBIF failed".format(item['title']), None, context))
+            import_multispecies_job.link_error(cleanup_job)
+            (import_job | import_multispecies_job | cleanup_job | finish_job).delay()
+        else:
+            (import_job | cleanup_job | finish_job).delay()
 
     except Exception as e:
         set_progress('FAILED', 'Download {0} from gbif: {1}'.format(lsid, e), None, context)
