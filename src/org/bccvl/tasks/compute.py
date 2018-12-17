@@ -643,7 +643,6 @@ def transfer_outputs(params, context):
                            item['file']['filename'])
         item['file']['url'] = dst  # update destination with filename
         move_tasks.append((src, dst, item))
-
     # Upload output out to destination specified i.e. swift store
     tp = Pool(3)
     tp.map(upload_outputs, move_tasks)
