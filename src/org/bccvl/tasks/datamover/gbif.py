@@ -11,7 +11,7 @@ from org.bccvl.tasks.celery import app
 from org.bccvl.tasks.utils import extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
-from org.bccvl.tasks.utils import import_ala_job
+from org.bccvl.tasks.utils import import_ala_job, import_multi_species_csv_job
 
 
 LOG = logging.getLogger(__name__)
@@ -41,8 +41,8 @@ def pull_occurrences_from_gbif(lsid, dest_url, context, import_multspecies_param
 
         # build bccvl metadata:
         bccvlmd = {
-            'genre': 'DataGenreSpeciesOccurrence',
-            'categories': ['occurrence'],
+            'genre': 'DataGenreSpeciesCollection' if import_multspecies_params else 'DataGenreSpeciesOccurrence',
+            'categories': ['multispecies' if import_multspecies_params else 'occurrence'],
             'species': {
                 'scientificName': gbif_md.get('scientificName', None),
                 'vernacularName': gbif_md.get('vernacularName', None),

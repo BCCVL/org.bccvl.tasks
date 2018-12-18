@@ -11,14 +11,14 @@ from org.bccvl.tasks.celery import app
 from org.bccvl.tasks.utils import extract_metadata
 from org.bccvl.tasks.utils import set_progress, import_cleanup
 from org.bccvl.tasks.utils import set_progress_job, import_cleanup_job
-from org.bccvl.tasks.utils import import_ala_job
+from org.bccvl.tasks.utils import import_ala_job, import_multi_species_csv_job
 
 
 LOG = logging.getLogger(__name__)
 
 
 @app.task()
-def pull_occurrences_from_obis(lsid, dest_url, context):
+def pull_occurrences_from_obis(lsid, dest_url, context, import_multspecies_params):
     # 1. set progress
     set_progress('RUNNING', 'Download {0} from OBIS'.format(lsid), None, context)
     # 2. do move
@@ -41,8 +41,8 @@ def pull_occurrences_from_obis(lsid, dest_url, context):
 
         # build bccvl metadata:
         bccvlmd = {
-            'genre': 'DataGenreSpeciesOccurrence',
-            'categories': ['occurrence'],
+            'genre': 'DataGenreSpeciesCollection' if import_multspecies_params else 'DataGenreSpeciesOccurrence',
+            'categories': ['multispecies' if import_multspecies_params else 'occurrence'],
             'species': {
                 'scientificName': obis_md.get('tname', None),
                 'vernacularName': obis_md.get('tname', None),
@@ -98,8 +98,19 @@ def pull_occurrences_from_obis(lsid, dest_url, context):
         import_job.link_error(set_progress_job("FAILED", "Import of obis data failed {0}".format(lsid), None, context))
         import_job.link_error(cleanup_job)
         finish_job = set_progress_job("COMPLETED", 'OBIS import {} complete'.format(lsid), None, context)
-        (import_job | cleanup_job | finish_job).delay()
 
+        # Split multi-species dataset
+        if import_multspecies_params:
+            import_multispecies_job = import_multi_species_csv_job(item.get('file').get('url'),
+                                                                   import_multspecies_params['results_dir'],
+                                                                   import_multspecies_params['import_context'],
+                                                                   context)
+            import_multispecies_job.link_error(set_progress_job(
+                "FAILED", u"Split multi-species dataset '{0}' from OBIS failed".format(item['title']), None, context))
+            import_multispecies_job.link_error(cleanup_job)
+            (import_job | import_multispecies_job | cleanup_job | finish_job).delay()
+        else:
+            (import_job | cleanup_job | finish_job).delay()
     except Exception as e:
         set_progress('FAILED', 'Download {0} from OBIS: {1}'.format(lsid, e), None, context)
         import_cleanup(dest_url, context)

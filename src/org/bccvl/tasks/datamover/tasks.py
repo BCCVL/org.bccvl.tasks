@@ -102,12 +102,18 @@ def import_multi_species_csv(url, results_dir, import_context, context):
     # url .... source file
     # results_dir ... folder to place split files into
     # context ... the context with user and orig dataset
+    occfilename = {
+        'ala': 'ala_occurrence.csv',
+        'gbif': 'gbif_occurrence.csv',
+        'obis': 'obis_occurrence.csv'
+    }
     try:
         set_progress('RUNNING', 'Split {0}'.format(url), None, context)
         # step 1: update main dataset metadata
         tmpdir = tempfile.mkdtemp()
         userid = context.get('user', {}).get('id')
         genre = context.get('genre', 'DataGenreSpeciesCollection')
+        datasource = context.get('dataSource', 'ala')
         settings = app.conf.get('bccvl', {})
         src = build_source(url, userid, settings)
         dst = build_destination('file://{}'.format(tmpdir), settings)
@@ -119,7 +125,7 @@ def import_multi_species_csv(url, results_dir, import_context, context):
         # Extract occurrence file from downloaded file
         mimetype, enc = mimetypes.guess_type(tmpfile)
         if mimetype == 'application/zip':
-            src_occ_data = os.path.join('data', 'ala_occurrence.csv')
+            src_occ_data = os.path.join('data', occfilename.get(datasource))
             with zipfile.ZipFile(tmpfile, 'r') as zipf:
                 occfile = os.path.join(tmpdir, src_occ_data)
                 zipf.extract(src_occ_data, tmpdir)
