@@ -750,7 +750,7 @@ def createItem(fname, info, params):
     # layermd ... metadata about raster layer
     layermd = {}
     # bccvlmd ... bccvl specific metadata
-    bccvlmd = {}
+    bccvlmd = {'hidden': info.get('hidden', False)}
 
     layer = info.get('layer', None)
     if layer:
