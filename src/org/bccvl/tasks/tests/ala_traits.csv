@@ -1,4 +1,4 @@
-species,lon,lat,uncertainty,date,year,month,trait1,trait2,trait3
+species, lon,lat,uncertainty,date,year,month,trait1,trait2,trait3
 species1,115.0,-32.0,9999.0,2006-09-06,2006,09,1.23,2.34,
 species1,144.95,-37.7833333,1000.0,2006-09-06,2006,09,3.45,4.56,
 species1,116.0,-32.0,9999.0,2006-09-06,2006,09,,2.23,2.34

@@ -165,7 +165,7 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
                     # Note that "all" and "izip" are lazy
                     # (will stop at the first line that's not identical)
                     return all(
-                        lineA == lineB
+                        lineA.strip("\r\n") == lineB.strip("\r\n")
                         for lineA, lineB
                         in izip(a.xreadlines(), b.xreadlines())
                     )
