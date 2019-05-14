@@ -66,7 +66,7 @@ class Test_csv_utf8(unittest.TestCase):
 
         tmpdir = tempfile.mkdtemp()
         try:
-            occurrence_url = "http://biocache.ala.org.au/ws/occurrences/index/download"
+            occurrence_url = "https://biocache-ws.ala.org.au/ws/occurrences/index/download"
             query = "lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359"
             qfilter = "zeroCoordinates,badlyFormedBasisOfRecord,detectedOutlier,decimalLatLongCalculationFromEastingNorthingFailed,missingBasisOfRecord,decimalLatLongCalculationFromVerbatimFailed,coordinatesCentreOfCountry,geospatialIssue,coordinatesOutOfRange,speciesOutsideExpertRange,userVerified,processingError,decimalLatLongConverionFailed,coordinatesCentreOfStateProvince,habitatMismatch"
             email = "testuser@gmail.com"

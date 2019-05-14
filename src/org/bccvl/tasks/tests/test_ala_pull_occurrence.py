@@ -68,12 +68,12 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
         params = [
             {
                 'name': 'test_data1',
-                'url': 'http://biocache.ala.org.au',
+                'url': 'https://biocache-ws.ala.org.au',
                 'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
             },
             {
                 'name': 'test_data2',
-                'url': 'http://biocache.ala.org.au',
+                'url': 'https://biocache-ws.ala.org.au',
                 'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359'
             }
         ]
@@ -178,13 +178,13 @@ class Test_pull_occurrences_from_ala(unittest.TestCase):
         params = [
             {
                 'name': 'test_trait_data1',
-                'url': 'http://biocache.ala.org.au',
+                'url': 'https://biocache-ws.ala.org.au',
                 'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262359',
                 'trait': '1'
             },
             {
                 'name': 'test_trait_data2',
-                'url': 'http://biocache.ala.org.au',
+                'url': 'https://biocache-ws.ala.org.au',
                 'query': 'qid:lsid:urn:lsid:biodiversity.org.au:apni.taxon:262360'
             }
         ]
