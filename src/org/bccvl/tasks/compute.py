@@ -816,6 +816,8 @@ def extractThresholdValues(fname):
     # as well
     for row in dictreader:
         try:
+            if row[''] != 'Maximize TPR+TNR':
+                continue
             # TODO: use Decimal aware json serialiser? (gives us validation as well)
             #thresholds[row['']] = Decimal(row['best'])
             # Decimal is not JSON serializable, so save as string
